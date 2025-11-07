@@ -1,0 +1,36 @@
+Simple IM v1.0.0
+
+Release Date: 2025-11-07
+Build: Initial Release
+
+Features:
+
+- User Authentication (Register/Login)
+- Friend Management (Add/Remove/List)
+- Private Chat (1-to-1 Messaging)
+- Group Chat (Multi-user Messaging)
+- WebSocket Real-time Communication
+- Message Status Management (Read/Unread)
+- Online Status Detection
+- JWT Token Authentication
+- Redis PubSub Message Distribution
+
+Tech Stack:
+
+- Go 1.21+
+- Gin Web Framework
+- MySQL 8.0 (GORM)
+- Redis 7.0
+- WebSocket (Gorilla)
+- JWT Authentication
+- Zap Logger
+
+Architecture:
+
+- Layered Architecture (Handler -> Service -> Repository)
+- Dual Server Model (HTTP + WebSocket)
+- Microservice Ready
+- Docker Support
+
+Author: Simple IM Team
+License: MIT
