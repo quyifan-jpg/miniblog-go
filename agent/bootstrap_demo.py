@@ -5,7 +5,7 @@ import requests
 import zipfile
 from tqdm import tqdm
 
-DEMO_URL = "https://github.com/arun477/miniblog/releases/download/v1.2.0/demo_content.zip"
+DEMO_URL = "https://github.com/arun477/beifong/releases/download/v1.2.0/demo_content.zip"
 TARGET_DIRS = ["databases", "podcasts"]
 
 

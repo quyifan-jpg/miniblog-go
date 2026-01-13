@@ -1,21 +1,281 @@
-# 备份文件
+# ============================================
+# 环境变量和敏感配置
+# ============================================
 .env
+.env.local
+.env.*.local
+*.key
+*.pem
+*.cert
+config/config.yaml  # 如果包含敏感信息，取消注释
 
-# Python 虚拟环境
+# ============================================
+# Go 相关
+# ============================================
+# 编译产物
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+dist/
+*.test
+*.out
+*.prof
+
+# Go 测试覆盖率
+*.cover
+coverage.html
+coverage.out
+
+# Go 工作区文件
+go.work
+go.work.sum
+
+# Go 依赖缓存（可选，通常保留 go.sum）
+# vendor/
+
+# ============================================
+# Python 相关
+# ============================================
+# 虚拟环境
 venv/
-agent/venv/
 env/
 ENV/
+.venv/
+agent/venv/
+*.venv
 
 # Python 缓存文件
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+.Python
 
-# IDE 配置
+# Python 分发/打包
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pytest
+.pytest_cache/
+.tox/
+.hypothesis/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre
+.pyre/
+
+# ============================================
+# 前端相关 (React/Node.js)
+# ============================================
+# Node 依赖
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# 构建输出
+web/build/
+web/dist/
+web/.next/
+web/out/
+web/.nuxt/
+web/.vuepress/dist/
+
+# 前端缓存
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+.vuepress/dist/
+
+# 前端环境变量
+web/.env
+web/.env.local
+web/.env.development.local
+web/.env.test.local
+web/.env.production.local
+
+# ============================================
+# 数据库文件
+# ============================================
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+agent/databases/*.db
+agent/databases/*.sqlite
+
+# ============================================
+# 日志文件
+# ============================================
+*.log
+logs/
+*.log.*
+log/
+
+# ============================================
+# IDE 和编辑器
+# ============================================
+# VSCode
 .vscode/
-.idea/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
 
-web/node_modules/*
-web/build/*
+# IntelliJ IDEA / PyCharm
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Vim
+*.swp
+*.swo
+*~
+.vim/
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# ============================================
+# 操作系统相关
+# ============================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ============================================
+# Docker 相关
+# ============================================
+.dockerignore
+docker-compose.override.yml
+*.dockerignore
+
+# ============================================
+# 临时文件和备份
+# ============================================
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+*.orig
+*.swp
+*.swo
+*~
+.#*
+
+# ============================================
+# 测试和覆盖率
+# ============================================
+.coverage
+htmlcov/
+.tox/
+.pytest_cache/
+.hypothesis/
+test-results/
+coverage/
+
+# ============================================
+# 项目特定
+# ============================================
+# 编译后的二进制文件
+miniblog
+miniblog.exe
+backend/eino-practice/examples/**/__debug_bin*
+
+# 浏览器相关
+agent/browsers/
+agent/podcasts/audio/
+agent/podcasts/recordings/
+
+# 静态资源（如果不需要版本控制）
+# agent/static/
+# agent/podcasts/images/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# ============================================
+# 其他
+# ============================================
+# 压缩文件（可选，根据项目需要）
+# *.zip
+# *.tar.gz
+# *.rar
+
+# 大型媒体文件（可选）
+# *.mp4
+# *.avi
+# *.mov
+
+# 文档生成
+docs/_build/
+site/

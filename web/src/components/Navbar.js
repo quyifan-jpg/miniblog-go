@@ -33,7 +33,7 @@ const Navbar = () => {
                   </div>
                   <Link to="/" className="relative group">
                      <span className="text-xl font-bold text-gray-100">
-                        <span className="text-emerald-400">Bei</span>fong
+                        <span className="text-emerald-400">Mini</span>blog
                      </span>
                      <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-emerald-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
                      <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-emerald-400 blur-sm opacity-70 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
