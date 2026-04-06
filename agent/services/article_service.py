@@ -8,6 +8,14 @@ from models.article_schemas import Article, PaginatedArticles
 class ArticleService:
     """Service for managing article operations with the new database structure."""
 
+    @staticmethod
+    def _normalize_dt(value):
+        if value is None:
+            return value
+        if hasattr(value, "isoformat"):
+            return value.isoformat()
+        return value
+
     async def get_articles(
         self,
         page: int = 1,
@@ -47,10 +55,11 @@ class ArticleService:
                 """)
                 query_params.append(category.lower())
             if date_from:
-                query_parts.append("AND datetime(ca.published_date) >= datetime(?)")
+                # MySQL-compatible date filtering: published_date is stored as TIMESTAMP/DATETIME
+                query_parts.append("AND ca.published_date >= ?")
                 query_params.append(date_from)
             if date_to:
-                query_parts.append("AND datetime(ca.published_date) <= datetime(?)")
+                query_parts.append("AND ca.published_date <= ?")
                 query_params.append(date_to)
             if search:
                 query_parts.append("AND (ca.title LIKE ? OR ca.summary LIKE ?)")
@@ -62,7 +71,7 @@ class ArticleService:
             )
             total_articles = await tracking_db.execute_query(count_query, tuple(query_params), fetch=True, fetch_one=True)
             total_count = total_articles.get("COUNT(*)", 0) if total_articles else 0
-            query_parts.append("ORDER BY datetime(ca.published_date) DESC, ca.id DESC")
+            query_parts.append("ORDER BY ca.published_date DESC, ca.id DESC")
             query_parts.append("LIMIT ? OFFSET ?")
             query_params.extend([per_page, offset])
             articles_query = " ".join(query_parts)
@@ -80,6 +89,7 @@ class ArticleService:
                 sources_result = await sources_db.execute_query(source_query, tuple(feed_ids), fetch=True)
                 source_names = {item["feed_id"]: item["source_name"] for item in sources_result}
             for article in articles:
+                article["published_date"] = self._normalize_dt(article.get("published_date"))
                 feed_id = article.get("feed_id")
                 article["source_name"] = source_names.get(feed_id, "Unknown Source")
                 article.pop("feed_id", None)

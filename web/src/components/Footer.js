@@ -32,7 +32,7 @@ const Footer = () => {
                         🦉
                      </span>
                      <span className="text-xl font-bold text-gray-100">
-                        <span className="text-emerald-400">Mini</span>Blog
+                        <span className="text-emerald-400">Mini</span>Podcast
                      </span>
                   </div>
                   <p className="text-gray-400 text-sm mb-0">
@@ -41,7 +41,7 @@ const Footer = () => {
                </div>
             </div>
             <div className="pt-0 mt-0  text-center sm:flex sm:justify-between sm:text-left">
-               <p className="text-gray-400 text-sm">&copy; {currentYear} MiniBlog.</p>
+               <p className="text-gray-400 text-sm">&copy; {currentYear} MiniPodcast.</p>
             </div>
          </div>
       </footer>

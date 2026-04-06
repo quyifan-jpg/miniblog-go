@@ -15,17 +15,30 @@ def get_hash(entries: List[Dict[str, str]]) -> str:
     return hashlib.md5(texts.encode()).hexdigest()
 
 
+from dateutil import parser as date_parser
+
 def parse_feed_entries(entries: List[Dict[str, Any]]) -> List[Dict[str, str]]:
     parsed_entries = []
     for entry in entries:
         content = entry.get("content") or entry.get("description") or ""
-        published = (
+        
+        # Get the raw date string from various possible fields
+        raw_date = (
             entry.get("published")
             or entry.get("updated")
             or entry.get("pubDate")
             or entry.get("created")
-            or datetime.now().isoformat()
         )
+        
+        # Try to parse the date to ISO format
+        published = datetime.now().isoformat()
+        if raw_date:
+            try:
+                published = date_parser.parse(str(raw_date)).isoformat()
+            except (ValueError, TypeError):
+                # If parsing fails, use the raw string or fallback to now if raw is unusable
+                published = str(raw_date) if raw_date else datetime.now().isoformat()
+
         entry_id = entry.get("id") or entry.get("link", "")
         link = entry.get("link", "")
         summary = entry.get("summary", "")
@@ -41,6 +54,7 @@ def parse_feed_entries(entries: List[Dict[str, Any]]) -> List[Dict[str, str]]:
             }
         )
     return parsed_entries
+
 
 
 def is_rss_feed(feed_data: Any) -> bool:

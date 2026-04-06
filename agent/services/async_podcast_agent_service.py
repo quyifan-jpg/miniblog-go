@@ -1,9 +1,9 @@
 import os
 import json
 import uuid
+import asyncio
 from fastapi import status
 from fastapi.responses import JSONResponse
-import aiosqlite
 import glob
 from redis.asyncio import ConnectionPool, Redis
 from db.config import get_agent_session_db_path
@@ -11,6 +11,7 @@ from db.agent_config_v2 import PODCAST_DIR, PODCAST_AUIDO_DIR, PODCAST_IMG_DIR, 
 from services.celery_tasks import agent_chat
 from dotenv import load_dotenv
 from services.internal_session_service import SessionService
+from db.connection import db_connection
 
 load_dotenv()
 
@@ -38,6 +39,35 @@ class PodcastAgentService:
         
         self.redis_pool = ConnectionPool.from_url(redis_url, max_connections=10)
         self.redis = Redis(connection_pool=self.redis_pool)
+        self.using_mysql = os.environ.get("DATABASE_URL", "").startswith(("mysql://", "mysql+pymysql://"))
+
+    async def _fetchone(self, db_path, query, params=()):
+        def _run():
+            with db_connection(db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(query, params)
+                return cursor.fetchone()
+
+        return await asyncio.to_thread(_run)
+
+    async def _fetchall(self, db_path, query, params=()):
+        def _run():
+            with db_connection(db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(query, params)
+                return cursor.fetchall()
+
+        return await asyncio.to_thread(_run)
+
+    async def _execute(self, db_path, query, params=()):
+        def _run():
+            with db_connection(db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(query, params)
+                conn.commit()
+                return cursor.rowcount
+
+        return await asyncio.to_thread(_run)
 
     async def get_active_task(self, session_id):
         try:
@@ -59,11 +89,11 @@ class PodcastAgentService:
         if request and request.session_id:
             session_id = request.session_id
             try:
+                if self.using_mysql:
+                    return {"session_id": session_id}
                 db_path = get_agent_session_db_path()
-                async with aiosqlite.connect(db_path) as conn:
-                    async with conn.execute("SELECT 1 FROM podcast_sessions WHERE session_id = ?", (session_id,)) as cursor:
-                        row = await cursor.fetchone()
-                        exists = row is not None
+                row = await self._fetchone(db_path, "SELECT 1 FROM podcast_sessions WHERE session_id = ?", (session_id,))
+                exists = row is not None
                 if exists:
                     return {"session_id": session_id}
             except Exception as e:
@@ -186,12 +216,13 @@ class PodcastAgentService:
 
     async def get_session_state(self, session_id):
         try:
-            db_path = get_agent_session_db_path()
-            async with aiosqlite.connect(db_path) as conn:
-                conn.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
-                async with conn.execute("SELECT session_data FROM podcast_sessions WHERE session_id = ?", (session_id,)) as cursor:
-                    row = await cursor.fetchone()
-            if not row:
+            if not self.using_mysql:
+                db_path = get_agent_session_db_path()
+                row = await self._fetchone(db_path, "SELECT session_data FROM podcast_sessions WHERE session_id = ?", (session_id,))
+            else:
+                row = {"session_data": "{}"}
+
+            if not row and not self.using_mysql:
                 return {
                     "session_id": session_id,
                     "response": "No session data found.",
@@ -220,45 +251,44 @@ class PodcastAgentService:
 
     async def list_sessions(self, page=1, per_page=10):
         try:
-            db_path = get_agent_session_db_path()
-            async with aiosqlite.connect(db_path) as conn:
-                conn.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
-                async with conn.execute(
-                    """
-                    select name from sqlite_master
-                    where type='table' and name='podcast_sessions'
-                    """
-                ) as cursor:
-                    table = await cursor.fetchone()
-                if not table:
-                    return {
-                        "sessions": [],
-                        "pagination": {
-                            "total": 0,
-                            "page": page,
-                            "per_page": per_page,
-                            "total_pages": 0,
-                        },
-                    }
-                async with conn.execute("SELECT COUNT(*) as count FROM podcast_sessions") as cursor:
-                    row = await cursor.fetchone()
-                    total_sessions = row["count"] if row else 0
+            sessions = []
+            if self.using_mysql:
+                state_sessions = SessionService.list_sessions(page=page, per_page=per_page)
+                for item in state_sessions.get("items", []):
+                    try:
+                        session = SessionService.get_session(item["session_id"])
+                        session_state = session.get("state", {})
+                        sessions.append(
+                            {
+                                "session_id": item["session_id"],
+                                "topic": session_state.get("title", "Untitled Podcast"),
+                                "stage": session_state.get("stage", "welcome"),
+                                "updated_at": item.get("created_at"),
+                            }
+                        )
+                    except Exception as e:
+                        print(f"Error parsing mysql session data: {e}")
+                total_sessions = state_sessions.get("total", 0)
+            else:
+                db_path = get_agent_session_db_path()
+                row = await self._fetchone(db_path, "SELECT COUNT(*) as count FROM podcast_sessions")
+                total_sessions = row.get("count", 0) if row else 0
                 offset = (page - 1) * per_page
-                async with conn.execute(
-                    "SELECT session_id, session_data, updated_at FROM podcast_sessions ORDER BY updated_at DESC LIMIT ? OFFSET ?", (per_page, offset)
-                ) as cursor:
-                    rows = await cursor.fetchall()
-                    sessions = []
-                    for row in rows:
-                        try:
-                            session = SessionService.get_session(row["session_id"])
-                            session_state = session.get("state", {})
-                            title = session_state.get("title", "Untitled Podcast")
-                            stage = session_state.get("stage", "welcome")
-                            updated_at = row["updated_at"]
-                            sessions.append({"session_id": row["session_id"], "topic": title, "stage": stage, "updated_at": updated_at})
-                        except Exception as e:
-                            print(f"Error parsing session data: {e}")
+                rows = await self._fetchall(
+                    db_path,
+                    "SELECT session_id, session_data, updated_at FROM podcast_sessions ORDER BY updated_at DESC LIMIT ? OFFSET ?",
+                    (per_page, offset),
+                )
+                for row in rows:
+                    try:
+                        session = SessionService.get_session(row["session_id"])
+                        session_state = session.get("state", {})
+                        title = session_state.get("title", "Untitled Podcast")
+                        stage = session_state.get("stage", "welcome")
+                        updated_at = row["updated_at"]
+                        sessions.append({"session_id": row["session_id"], "topic": title, "stage": stage, "updated_at": updated_at})
+                    except Exception as e:
+                        print(f"Error parsing session data: {e}")
             return {
                 "sessions": sessions,
                 "pagination": {
@@ -274,59 +304,60 @@ class PodcastAgentService:
 
     async def delete_session(self, session_id: str):
         try:
+            row = {"session_data": "{}"} if self.using_mysql else await self._fetchone(
+                get_agent_session_db_path(), "SELECT session_data FROM podcast_sessions WHERE session_id = ?", (session_id,)
+            )
+            if not row and not self.using_mysql:
+                return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"error": f"Session with ID {session_id} not found"})
+            if self.using_mysql:
+                SessionService.delete_session(session_id)
+                return {"success": True, "message": f"Session {session_id} deleted from MySQL session_state"}
             db_path = get_agent_session_db_path()
-            async with aiosqlite.connect(db_path) as conn:
-                conn.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
-                async with conn.execute("SELECT session_data FROM podcast_sessions WHERE session_id = ?", (session_id,)) as cursor:
-                    row = await cursor.fetchone()
-                if not row:
-                    return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"error": f"Session with ID {session_id} not found"})
-                try:
-                    session = SessionService.get_session(session_id)
-                    session_state = session.get("state", {})
-                    stage = session_state.get("stage")
-                    is_completed = stage == "complete" or session_state.get("podcast_generated", False)
-                    banner_url = session_state.get("banner_url")
-                    audio_url = session_state.get("audio_url")
-                    web_search_recording = session_state.get("web_search_recording")
-                    await conn.execute("DELETE FROM podcast_sessions WHERE session_id = ?", (session_id,))
-                    await conn.commit()
-                    if is_completed:
-                        print(f"Session {session_id} is in 'complete' stage, keeping assets but removing session record")
-                    else:
-                        if banner_url:
-                            banner_path = os.path.join(PODCAST_IMG_DIR, banner_url)
-                            if os.path.exists(banner_path):
-                                try:
-                                    os.remove(banner_path)
-                                    print(f"Deleted banner image: {banner_path}")
-                                except Exception as e:
-                                    print(f"Error deleting banner image: {e}")
-                        if audio_url:
-                            audio_path = os.path.join(PODCAST_AUIDO_DIR, audio_url)
-                            if os.path.exists(audio_path):
-                                try:
-                                    os.remove(audio_path)
-                                    print(f"Deleted audio file: {audio_path}")
-                                except Exception as e:
-                                    print(f"Error deleting audio file: {e}")
-                        if web_search_recording:
-                            recording_dir = os.path.join(PODCAST_RECORDINGS_DIR, session_id)
-                            if os.path.exists(recording_dir):
-                                try:
-                                    import shutil
+            try:
+                session = SessionService.get_session(session_id)
+                session_state = session.get("state", {})
+                stage = session_state.get("stage")
+                is_completed = stage == "complete" or session_state.get("podcast_generated", False)
+                banner_url = session_state.get("banner_url")
+                audio_url = session_state.get("audio_url")
+                web_search_recording = session_state.get("web_search_recording")
+                await self._execute(db_path, "DELETE FROM podcast_sessions WHERE session_id = ?", (session_id,))
+                if is_completed:
+                    print(f"Session {session_id} is in 'complete' stage, keeping assets but removing session record")
+                else:
+                    if banner_url:
+                        banner_path = os.path.join(PODCAST_IMG_DIR, banner_url)
+                        if os.path.exists(banner_path):
+                            try:
+                                os.remove(banner_path)
+                                print(f"Deleted banner image: {banner_path}")
+                            except Exception as e:
+                                print(f"Error deleting banner image: {e}")
+                    if audio_url:
+                        audio_path = os.path.join(PODCAST_AUIDO_DIR, audio_url)
+                        if os.path.exists(audio_path):
+                            try:
+                                os.remove(audio_path)
+                                print(f"Deleted audio file: {audio_path}")
+                            except Exception as e:
+                                print(f"Error deleting audio file: {e}")
+                    if web_search_recording:
+                        recording_dir = os.path.join(PODCAST_RECORDINGS_DIR, session_id)
+                        if os.path.exists(recording_dir):
+                            try:
+                                import shutil
 
-                                    shutil.rmtree(recording_dir)
-                                    print(f"Deleted recordings directory: {recording_dir}")
-                                except Exception as e:
-                                    print(f"Error deleting recordings directory: {e}")
-                    if is_completed:
-                        return {"success": True, "message": f"Session {session_id} deleted, but assets preserved"}
-                    else:
-                        return {"success": True, "message": f"Session {session_id} and its associated data deleted successfully"}
-                except Exception as e:
-                    print(f"Error parsing session data for deletion: {e}")
-                    return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"error": f"Error deleting session: {str(e)}"})
+                                shutil.rmtree(recording_dir)
+                                print(f"Deleted recordings directory: {recording_dir}")
+                            except Exception as e:
+                                print(f"Error deleting recordings directory: {e}")
+                if is_completed:
+                    return {"success": True, "message": f"Session {session_id} deleted, but assets preserved"}
+                else:
+                    return {"success": True, "message": f"Session {session_id} and its associated data deleted successfully"}
+            except Exception as e:
+                print(f"Error parsing session data for deletion: {e}")
+                return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"error": f"Error deleting session: {str(e)}"})
         except Exception as e:
             print(f"Error deleting session: {e}")
             return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"error": f"Failed to delete session: {str(e)}"})
@@ -361,20 +392,13 @@ class PodcastAgentService:
 
     async def get_session_history(self, session_id: str):
         try:
-            db_path = get_agent_session_db_path()
-            async with aiosqlite.connect(db_path) as conn:
-                conn.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
-                async with conn.execute(
-                    """
-                    select name from sqlite_master
-                    where type='table' and name='podcast_sessions'
-                    """
-                ) as cursor:
-                    table = await cursor.fetchone()
-                    if not table:
-                        return {"session_id": session_id, "messages": [], "state": "{}", "is_processing": False, "process_type": None}
-                async with conn.execute("SELECT memory, session_data FROM podcast_sessions WHERE session_id = ?", (session_id,)) as cursor:
-                    row = await cursor.fetchone()
+            if self.using_mysql:
+                session = SessionService.get_session(session_id)
+                session_state = session.get("state", {})
+                formatted_messages = []
+            else:
+                db_path = get_agent_session_db_path()
+                row = await self._fetchone(db_path, "SELECT memory, session_data FROM podcast_sessions WHERE session_id = ?", (session_id,))
                 if not row:
                     return {"session_id": session_id, "messages": [], "state": "{}", "is_processing": False, "process_type": None}
                 formatted_messages, session_state = await self._get_chat_messages(row, session_id)

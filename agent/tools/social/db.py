@@ -1,49 +1,16 @@
-import sqlite3
 import json
+
+from db.connection import db_connection
 
 
 def create_connection(db_file="x_posts.db"):
-    conn = sqlite3.connect(db_file)
-    conn.row_factory = sqlite3.Row
-    return conn
+    # SQLite disabled: use MySQL via DATABASE_URL. db_file is ignored.
+    return db_connection(db_file)
 
 
 def setup_database(conn):
-    create_posts_table = """
-    CREATE TABLE IF NOT EXISTS posts (
-        post_id TEXT PRIMARY KEY,
-        platform TEXT,
-        user_display_name TEXT,
-        user_handle TEXT,
-        user_profile_pic_url TEXT,
-        post_timestamp TEXT,
-        post_display_time TEXT,
-        post_url TEXT,
-        post_text TEXT,
-        post_mentions TEXT,
-        engagement_reply_count INTEGER,
-        engagement_retweet_count INTEGER,
-        engagement_like_count INTEGER,
-        engagement_bookmark_count INTEGER,
-        engagement_view_count INTEGER,
-        media TEXT,  -- Stored as JSON
-        media_count INTEGER,
-        is_ad BOOLEAN,
-        sentiment TEXT,
-        categories TEXT,
-        tags TEXT,
-        analysis_reasoning TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-    """
-
-    conn.execute(create_posts_table)
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_posts_platform ON posts(platform)")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_posts_user_handle ON posts(user_handle)")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_posts_post_timestamp ON posts(post_timestamp)")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_posts_sentiment ON posts(sentiment)")
-    conn.commit()
+    # MySQL tables are created by services/mysql_init.py
+    return
 
 
 def parse_engagement_count(count_str):

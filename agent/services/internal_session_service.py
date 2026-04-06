@@ -4,20 +4,16 @@ import json
 from datetime import datetime
 from db.config import get_db_path
 from db.agent_config_v2 import INITIAL_SESSION_STATE
-import sqlite3
 from contextlib import contextmanager
+from db.connection import db_connection as shared_db_connection
 
 
 @contextmanager
 def get_db_connection(db_name: str):
     """Get a fresh database connection each time."""
     db_path = get_db_path(db_name)
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    try:
+    with shared_db_connection(db_path) as conn:
         yield conn
-    finally:
-        conn.close()
 
 
 class SessionService:
@@ -130,7 +126,11 @@ class SessionService:
                     "SELECT COUNT(*)",
                 )
                 cursor.execute(count_query, tuple(query_params))
-                total_count = cursor.fetchone()[0]
+                count_row = cursor.fetchone()
+                if isinstance(count_row, dict):
+                    total_count = list(count_row.values())[0] if count_row else 0
+                else:
+                    total_count = count_row[0] if count_row else 0
                 query_parts.append("ORDER BY created_at DESC")
                 query_parts.append("LIMIT ? OFFSET ?")
                 query_params.extend([per_page, offset])

@@ -1,6 +1,6 @@
-from agno.storage.sqlite import SqliteStorage
-from db.config import get_agent_session_db_path
 import json
+import os
+from agno.storage.singlestore import SingleStoreStorage
 
 AGENT_MODEL = "gpt-4o"
 AVAILABLE_LANGS = [
@@ -166,4 +166,13 @@ INITIAL_SESSION_STATE = {
     "show_audio_for_confirmation": False,
 }
 
-STORAGE = SqliteStorage(table_name="podcast_sessions", db_file=get_agent_session_db_path())
+def _get_mysql_db_url() -> str:
+    db_url = os.environ.get("DATABASE_URL", "")
+    if not db_url.startswith(("mysql://", "mysql+pymysql://")):
+        raise RuntimeError("DATABASE_URL must be a MySQL URL (mysql:// or mysql+pymysql://)")
+    if db_url.startswith("mysql://"):
+        db_url = db_url.replace("mysql://", "mysql+pymysql://", 1)
+    return db_url
+
+
+STORAGE = SingleStoreStorage(table_name="podcast_sessions", schema=None, db_url=_get_mysql_db_url())

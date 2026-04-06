@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8000';
+// 生产部署时设置 REACT_APP_API_URL 为后端地址（如 ECS 负载均衡器或 API 网关）
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:18000';
 
 const api = axios.create({
    baseURL: API_BASE_URL,

@@ -388,7 +388,7 @@ const Sidebar = ({ onNewSession, onSessionSelect }) => {
                </div>
                <div>
                   <h1 className="text-base font-bold text-white leading-tight">
-                     <span className="text-emerald-400">Mini</span>blog
+                     <span className="text-emerald-400">Mini</span>Podcast
                   </h1>
                   <p className="text-xs text-gray-400 leading-tight">AI Podcast Studio</p>
                </div>

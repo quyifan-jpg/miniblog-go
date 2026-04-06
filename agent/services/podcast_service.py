@@ -18,6 +18,12 @@ class PodcastService:
         os.makedirs(AUDIO_DIR, exist_ok=True)
         os.makedirs(IMAGE_DIR, exist_ok=True)
 
+    @staticmethod
+    def _normalize_dt(value):
+        if isinstance(value, datetime):
+            return value.isoformat()
+        return value
+
     async def get_podcasts(
         self,
         page: int = 1,
@@ -74,6 +80,7 @@ class PodcastService:
             podcasts = await podcasts_db.execute_query(query, tuple(params), fetch=True)
             for podcast in podcasts:
                 podcast["audio_generated"] = bool(podcast.get("audio_generated", 0))
+                podcast["created_at"] = self._normalize_dt(podcast.get("created_at"))
                 if podcast.get("banner_img_path"):
                     podcast["banner_img"] = podcast.get("banner_img_path")
                 else:
@@ -107,6 +114,7 @@ class PodcastService:
             if not podcast:
                 raise HTTPException(status_code=404, detail="Podcast not found")
             podcast["audio_generated"] = bool(podcast.get("audio_generated", 0))
+            podcast["created_at"] = self._normalize_dt(podcast.get("created_at"))
             if podcast.get("banner_img_path"):
                 podcast["banner_img"] = podcast.get("banner_img_path")
             else:

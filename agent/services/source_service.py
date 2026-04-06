@@ -8,6 +8,12 @@ from models.source_schemas import SourceCreate, SourceUpdate, SourceFeedCreate, 
 class SourceService:
     """Service for managing source operations with the new database structure."""
 
+    @staticmethod
+    def _normalize_dt(value):
+        if isinstance(value, datetime):
+            return value.isoformat()
+        return value
+
     async def get_sources(
         self, page: int = 1, per_page: int = 10, category: Optional[str] = None, search: Optional[str] = None, include_inactive: bool = False
     ) -> PaginatedSources:
@@ -40,6 +46,7 @@ class SourceService:
             final_query = " ".join(query_parts)
             sources = await sources_db.execute_query(final_query, tuple(query_params), fetch=True)
             for source in sources:
+                source["created_at"] = self._normalize_dt(source.get("created_at"))
                 source["categories"] = await self.get_source_categories(source["id"])
                 source["last_crawled"] = await self.get_source_last_crawled(source["id"])
                 source["website"] = source["url"]
@@ -66,6 +73,7 @@ class SourceService:
         source = await sources_db.execute_query(query, (source_id,), fetch=True, fetch_one=True)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
+        source["created_at"] = self._normalize_dt(source.get("created_at"))
         source["categories"] = await self.get_source_categories(source["id"])
         source["last_crawled"] = await self.get_source_last_crawled(source["id"])
         source["website"] = source["url"]
@@ -93,7 +101,7 @@ class SourceService:
         WHERE ft.source_id = ?
         """
         result = await tracking_db.execute_query(query, (source_id,), fetch=True, fetch_one=True)
-        return result.get("last_crawled") if result else None
+        return self._normalize_dt(result.get("last_crawled")) if result else None
 
     async def get_source_by_name(self, name: str) -> Dict[str, Any]:
         """Get a specific source by name."""
@@ -105,6 +113,7 @@ class SourceService:
         source = await sources_db.execute_query(query, (name,), fetch=True, fetch_one=True)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
+        source["created_at"] = self._normalize_dt(source.get("created_at"))
         source["categories"] = await self.get_source_categories(source["id"])
         source["last_crawled"] = await self.get_source_last_crawled(source["id"])
         source["website"] = source["url"]
@@ -122,6 +131,8 @@ class SourceService:
         """
         feeds = await sources_db.execute_query(query, (source_id,), fetch=True)
         for feed in feeds:
+            feed["created_at"] = self._normalize_dt(feed.get("created_at"))
+            feed["last_crawled"] = self._normalize_dt(feed.get("last_crawled"))
             feed["description"] = feed.get("feed_type", "Main feed").capitalize()
         return feeds
 

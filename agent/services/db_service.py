@@ -2,21 +2,24 @@ import os
 from typing import Dict, List, Any, Tuple, Union
 from fastapi import HTTPException
 from contextlib import contextmanager
-import sqlite3
 from db.config import get_db_path
+from db.connection import db_connection as shared_db_connection
 
 
 @contextmanager
 def db_connection(db_path: str):
     """Context manager for database connections."""
-    if not os.path.exists(db_path):
+    database_url = os.environ.get("DATABASE_URL", "")
+    using_mysql = database_url.startswith("mysql://") or database_url.startswith("mysql+pymysql://")
+    if not using_mysql and not os.path.exists(db_path):
         raise HTTPException(status_code=404, detail=f"Database {db_path} not found. Initialize the database first.")
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
     try:
-        yield conn
-    finally:
-        conn.close()
+        with shared_db_connection(db_path) as conn:
+            yield conn
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 class DatabaseService:

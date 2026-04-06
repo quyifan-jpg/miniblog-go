@@ -2,8 +2,9 @@ from agno.agent import Agent
 from datetime import datetime
 from db.config import get_podcasts_db_path, DB_PATH
 import os
-import sqlite3
 import json
+
+from db.connection import db_connection
 
 
 def _save_podcast_to_database_sync(session_state: dict) -> tuple[bool, str, int]:
@@ -49,8 +50,6 @@ def _save_podcast_to_database_sync(session_state: dict) -> tuple[bool, str, int]
         db_path = get_podcasts_db_path()
         db_directory = DB_PATH
         os.makedirs(db_directory, exist_ok=True)
-
-        conn = sqlite3.connect(db_path)
         content_json = json.dumps(generated_script)
         sources_json = json.dumps(sources) if sources else None
         current_time = datetime.now().isoformat()
@@ -69,29 +68,26 @@ def _save_podcast_to_database_sync(session_state: dict) -> tuple[bool, str, int]
                 banner_images
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
-        conn.execute(
-            query,
-            (
-                generated_script.get("title", "Untitled Podcast"),
-                datetime.now().strftime("%Y-%m-%d"),
-                content_json,
-                1 if audio_url else 0,
-                audio_url,
-                banner_url,
-                tts_engine,
-                language_code,
-                sources_json,
-                current_time,
-                banner_images,
-            ),
-        )
-        conn.commit()
-
-        cursor = conn.execute("SELECT last_insert_rowid()")
-        podcast_id = cursor.fetchone()
-        podcast_id = podcast_id[0] if podcast_id else None
-        cursor.close()
-        conn.close()
+        with db_connection(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                query,
+                (
+                    generated_script.get("title", "Untitled Podcast"),
+                    datetime.now().strftime("%Y-%m-%d"),
+                    content_json,
+                    1 if audio_url else 0,
+                    audio_url,
+                    banner_url,
+                    tts_engine,
+                    language_code,
+                    sources_json,
+                    current_time,
+                    banner_images,
+                ),
+            )
+            conn.commit()
+            podcast_id = cursor.lastrowid
 
         session_state["podcast_id"] = podcast_id
         return True, f"Podcast successfully saved with ID: {podcast_id}", podcast_id

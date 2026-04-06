@@ -1,5 +1,4 @@
 from datetime import datetime
-import sqlite3
 from .connection import db_connection, execute_query
 
 
@@ -75,7 +74,7 @@ def store_feed_entries(tracking_db_path, feed_id, source_id, entries):
                     ),
                 )
                 count += 1
-            except sqlite3.IntegrityError:
+            except Exception:
                 pass
         conn.commit()
     return count

@@ -1,10 +1,9 @@
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
-from agno.storage.sqlite import SqliteStorage
 import os
 from dotenv import load_dotenv
 from services.celery_app import app, SessionLockedTask
-from db.config import get_agent_session_db_path
+from agno.storage.singlestore import SingleStoreStorage
 from db.agent_config_v2 import (
     AGENT_DESCRIPTION,
     AGENT_INSTRUCTIONS,
@@ -23,22 +22,27 @@ import json
 
 load_dotenv()
 
-db_file = get_agent_session_db_path()
+def _get_mysql_db_url() -> str:
+    db_url = os.environ.get("DATABASE_URL", "")
+    if not db_url.startswith(("mysql://", "mysql+pymysql://")):
+        raise RuntimeError("DATABASE_URL must be a MySQL URL (mysql:// or mysql+pymysql://)")
+    # SQLAlchemy expects mysql+pymysql for PyMySQL
+    if db_url.startswith("mysql://"):
+        db_url = db_url.replace("mysql://", "mysql+pymysql://", 1)
+    return db_url
 
 
 @app.task(bind=True, max_retries=0, base=SessionLockedTask)
 def agent_chat(self, session_id, message):
     try:
         print(f"Processing message for session {session_id}: {message[:50]}...")
-        db_file = get_agent_session_db_path()
-        os.makedirs(os.path.dirname(db_file), exist_ok=True)
         from services.internal_session_service import SessionService
 
         session_state = SessionService.get_session(session_id).get("state", INITIAL_SESSION_STATE)
 
         _agent = Agent(
             model=OpenAIChat(id=AGENT_MODEL, api_key=os.getenv("OPENAI_API_KEY")),
-            storage=SqliteStorage(table_name="podcast_sessions", db_file=db_file),
+            storage=SingleStoreStorage(table_name="podcast_sessions", schema=None, db_url=_get_mysql_db_url()),
             add_history_to_messages=True,
             read_chat_history=True,
             add_state_in_messages=True,

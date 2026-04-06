@@ -1,20 +1,21 @@
-import sqlite3
 import json
 from datetime import datetime, timedelta
 from contextlib import contextmanager
 from agno.agent import Agent
 from db.config import get_db_path
 
+from db.connection import db_connection
+
 
 @contextmanager
 def get_social_media_db():
     db_path = get_db_path("social_media_db")
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
+    conn = None
     try:
-        yield conn
+        with db_connection(db_path) as conn:
+            yield conn
     finally:
-        conn.close()
+        pass
 
 
 def social_media_search(agent: Agent, topic: str, limit: int = 10) -> str:
@@ -48,9 +49,9 @@ def social_media_search(agent: Agent, topic: str, limit: int = 10) -> str:
             WHERE 
                 categories LIKE '%"news"%' 
                 AND sentiment = 'positive'
-                AND datetime(post_timestamp) >= datetime(?)
+                AND post_timestamp >= ?
                 AND (post_text LIKE ? OR user_display_name LIKE ?)
-            ORDER BY datetime(post_timestamp) DESC
+            ORDER BY post_timestamp DESC
             LIMIT ?
             """
             search_term = f"%{topic}%"
@@ -107,12 +108,12 @@ def social_media_trending_search(agent: Agent, limit: int = 10) -> str:
             WHERE 
                 categories LIKE '%"news"%'
                 AND sentiment = 'positive'
-                AND datetime(post_timestamp) >= datetime(?)
+                AND post_timestamp >= ?
             ORDER BY 
                 (COALESCE(engagement_like_count, 0) + 
                  COALESCE(engagement_retweet_count, 0) + 
                  COALESCE(engagement_reply_count, 0)) DESC,
-                datetime(post_timestamp) DESC
+                post_timestamp DESC
             LIMIT ?
             """
             cursor.execute(trending_sql, (date_from, limit))

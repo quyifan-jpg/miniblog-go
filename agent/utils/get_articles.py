@@ -1,8 +1,9 @@
-import sqlite3
 import openai
 import json
 from datetime import datetime, timedelta
 from typing import List, Dict, Any
+
+from db.connection import db_connection
 
 TOPIC_EXTRACTION_MODEL = "gpt-4o-mini"
 
@@ -51,34 +52,31 @@ def search_articles(
     if not terms:
         return []
     print(f"Search terms: {terms}")
-    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
     results = []
     try:
-        results = _execute_search(cursor, terms, from_date, operator, limit, use_categories)
-        if fallback_to_broader and len(results) < min(5, limit):
-            print(f"Initial search returned only {len(results)} results. Trying broader search...")
-            if operator == "AND":
-                broader_results = _execute_search(
-                    cursor,
-                    terms,
-                    from_date,
-                    "OR",
-                    limit,
-                    use_categories=True,
-                )
-                if len(broader_results) > len(results):
-                    print(f"Broader search found {len(broader_results)} results")
-                    results = broader_results
-        if results:
-            _add_source_names(cursor, results)
-        for article in results:
-            article["categories"] = _get_article_categories(cursor, article["id"])
+        with db_connection(db_path) as conn:
+            cursor = conn.cursor()
+            results = _execute_search(cursor, terms, from_date, operator, limit, use_categories)
+            if fallback_to_broader and len(results) < min(5, limit):
+                print(f"Initial search returned only {len(results)} results. Trying broader search...")
+                if operator == "AND":
+                    broader_results = _execute_search(
+                        cursor,
+                        terms,
+                        from_date,
+                        "OR",
+                        limit,
+                        use_categories=True,
+                    )
+                    if len(broader_results) > len(results):
+                        print(f"Broader search found {len(broader_results)} results")
+                        results = broader_results
+            if results:
+                _add_source_names(cursor, results)
+            for article in results:
+                article["categories"] = _get_article_categories(cursor, article["id"])
     except Exception as e:
         print(f"Error searching articles: {e}")
-    finally:
-        conn.close()
     return results
 
 

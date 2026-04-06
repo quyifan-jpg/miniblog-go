@@ -3,6 +3,8 @@ import redis
 import os
 import time
 import json
+import uuid
+import threading
 from dotenv import load_dotenv
 
 
@@ -49,6 +51,31 @@ app.conf.update(
     task_soft_time_limit=540,
 )
 
+# Release lock safely: only delete if the current lock value matches our owner token.
+# Also delete lock_info:{session_id} to avoid stale UI/task_id reads.
+_RELEASE_LOCK_LUA = """
+local lock_value = redis.call('GET', KEYS[1])
+if lock_value == ARGV[1] then
+  redis.call('DEL', KEYS[1])
+  redis.call('DEL', KEYS[2])
+  return 1
+else
+  return 0
+end
+"""
+
+# Renew lock TTL only if we still own it.
+_RENEW_LOCK_LUA = """
+local lock_value = redis.call('GET', KEYS[1])
+if lock_value == ARGV[1] then
+  redis.call('EXPIRE', KEYS[1], tonumber(ARGV[2]))
+  redis.call('EXPIRE', KEYS[2], tonumber(ARGV[3]))
+  return 1
+else
+  return 0
+end
+"""
+
 
 class SessionLockedTask(Task):
     def __call__(self, *args, **kwargs):
@@ -57,21 +84,31 @@ class SessionLockedTask(Task):
             return super().__call__(*args, **kwargs)
 
         lock_key = f"lock:{session_id}"
-        lock_info = redis_client.get(f"lock_info:{session_id}")
+        lock_info_key = f"lock_info:{session_id}"
+        owner_token = str(uuid.uuid4())
+        lock_info = redis_client.get(lock_info_key)
         if lock_info:
             try:
                 lock_data = json.loads(lock_info.decode("utf-8"))
                 lock_time = lock_data.get("timestamp", 0)
                 if time.time() - lock_time > STALE_LOCK_THRESHOLD_SEC:
                     redis_client.delete(lock_key)
-                    redis_client.delete(f"lock_info:{session_id}")
+                    redis_client.delete(lock_info_key)
             except (ValueError, TypeError) as e:
                 print(f"Error checking lock time: {e}")
 
-        acquired = redis_client.set(lock_key, "1", nx=True, ex=REDIS_LOCK_EXP_TIME_SEC)
+        # Owner token is stored as the lock value so we can safely release via Lua.
+        acquired = redis_client.set(lock_key, owner_token, nx=True, ex=REDIS_LOCK_EXP_TIME_SEC)
         if acquired:
-            lock_data = {"timestamp": time.time(), "task_id": self.request.id if hasattr(self, "request") else None}
-            redis_client.set(f"lock_info:{session_id}", json.dumps(lock_data), ex=REDIS_LOCK_INFO_EXP_TIME_SEC)
+            # Fencing token helps ordering if you later want to validate stale results.
+            fence_token = redis_client.incr(f"lock_fence:{session_id}")
+            lock_data = {
+                "timestamp": time.time(),
+                "task_id": self.request.id if hasattr(self, "request") else None,
+                "owner": owner_token,
+                "fence": fence_token,
+            }
+            redis_client.set(lock_info_key, json.dumps(lock_data), ex=REDIS_LOCK_INFO_EXP_TIME_SEC)
 
         if not acquired:
             return {
@@ -84,8 +121,61 @@ class SessionLockedTask(Task):
                 "process_type": "chat",
             }
 
+        # Watchdog: keep lock alive while the Celery task is running.
+        stop_renew_event = threading.Event()
+        renew_interval_sec = max(1, REDIS_LOCK_EXP_TIME_SEC // 2)
+
+        def _renew_loop():
+            while not stop_renew_event.is_set():
+                try:
+                    ok = redis_client.eval(
+                        _RENEW_LOCK_LUA,
+                        2,
+                        lock_key,
+                        lock_info_key,
+                        owner_token,
+                        REDIS_LOCK_EXP_TIME_SEC,
+                        REDIS_LOCK_INFO_EXP_TIME_SEC,
+                    )
+                    if ok:
+                        # Refresh lock_info.timestamp to avoid stale-lock mis-detection.
+                        lock_info_now = redis_client.get(lock_info_key)
+                        if lock_info_now:
+                            try:
+                                lock_data_now = json.loads(lock_info_now.decode("utf-8"))
+                                if lock_data_now.get("owner") == owner_token:
+                                    lock_data_now["timestamp"] = time.time()
+                                    redis_client.set(
+                                        lock_info_key,
+                                        json.dumps(lock_data_now),
+                                        ex=REDIS_LOCK_INFO_EXP_TIME_SEC,
+                                    )
+                            except (ValueError, TypeError):
+                                # Best-effort only; if parsing fails we still renewed TTL above.
+                                pass
+                except Exception as e:
+                    # Renewal failure shouldn't crash the task; stale lock cleanup will handle it.
+                    print(f"Error renewing lock for session {session_id}: {e}")
+
+                stop_renew_event.wait(renew_interval_sec)
+
+        renew_thread = None
+        if acquired:
+            renew_thread = threading.Thread(target=_renew_loop, daemon=True)
+            renew_thread.start()
+
         try:
             return super().__call__(*args, **kwargs)
         finally:
-            redis_client.delete(lock_key)
-            redis_client.delete(f"lock_info:{session_id}")
+            if acquired:
+                try:
+                    stop_renew_event.set()
+                    if renew_thread:
+                        renew_thread.join(timeout=2)
+                except Exception:
+                    pass
+                # Lua ensures only the owner that created the lock can delete it.
+                try:
+                    redis_client.eval(_RELEASE_LOCK_LUA, 2, lock_key, lock_info_key, owner_token)
+                except Exception as e:
+                    print(f"Error releasing lock via Lua: {e}")

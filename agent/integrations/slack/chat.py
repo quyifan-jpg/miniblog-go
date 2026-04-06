@@ -1,6 +1,5 @@
 import os
 import re
-import sqlite3
 import asyncio
 import aiohttp
 import json
@@ -11,6 +10,8 @@ from dotenv import load_dotenv
 from typing import Dict, List
 from datetime import datetime
 from db.config import get_slack_sessions_db_path
+
+from db.connection import db_connection
 
 load_dotenv()
 
@@ -29,76 +30,69 @@ def send_error_message(thread_key: str, error_message: str):
 
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS thread_sessions (
-            thread_key TEXT PRIMARY KEY,
-            session_id TEXT NOT NULL,
-            channel_id TEXT NOT NULL,
-            user_id TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS session_state (
-            session_id TEXT PRIMARY KEY,
-            state_data TEXT,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    conn.commit()
-    conn.close()
+    # Tables are created by MySQL schema init (services/mysql_init.py)
+    return
 
 
 def save_session_mapping(thread_key: str, session_id: str, channel_id: str, user_id: str = None):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute(
-        "INSERT OR REPLACE INTO thread_sessions (thread_key, session_id, channel_id, user_id, updated_at) VALUES (?, ?, ?, ?, ?)",
-        (thread_key, session_id, channel_id, user_id, datetime.now().isoformat()),
-    )
-    conn.commit()
-    conn.close()
+    with db_connection(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO slack_thread_sessions (thread_key, session_id, channel_id, user_id, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                session_id = VALUES(session_id),
+                channel_id = VALUES(channel_id),
+                user_id = VALUES(user_id),
+                updated_at = VALUES(updated_at)
+            """,
+            (thread_key, session_id, channel_id, user_id, datetime.now().isoformat()),
+        )
+        conn.commit()
 
 
 def get_session_info(thread_key: str):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT session_id, channel_id, user_id FROM thread_sessions WHERE thread_key = ?",
-        (thread_key,),
-    )
-    result = cursor.fetchone()
-    conn.close()
-    return result if result else None
+    with db_connection(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT session_id, channel_id, user_id FROM slack_thread_sessions WHERE thread_key = ?",
+            (thread_key,),
+        )
+        result = cursor.fetchone()
+        if not result:
+            return None
+        return (result.get("session_id"), result.get("channel_id"), result.get("user_id"))
 
 
 def save_session_state(session_id: str, state_data):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
     if isinstance(state_data, str):
         json_data = state_data
     else:
         json_data = json.dumps(state_data)
-    cursor.execute(
-        "INSERT OR REPLACE INTO session_state (session_id, state_data, updated_at) VALUES (?, ?, ?)",
-        (session_id, json_data, datetime.now().isoformat()),
-    )
-    conn.commit()
-    conn.close()
+    with db_connection(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO slack_session_state (session_id, state_data, updated_at)
+            VALUES (?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                state_data = VALUES(state_data),
+                updated_at = VALUES(updated_at)
+            """,
+            (session_id, json_data, datetime.now().isoformat()),
+        )
+        conn.commit()
 
 
 def get_session_state(session_id: str):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT state_data FROM session_state WHERE session_id = ?", (session_id,))
-    result = cursor.fetchone()
-    conn.close()
-    if result:
+    with db_connection(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT state_data FROM slack_session_state WHERE session_id = ?", (session_id,))
+        result = cursor.fetchone()
+    if result and result.get("state_data"):
         try:
-            return json.loads(result[0])
+            return json.loads(result["state_data"])
         except:
             return {}
     return {}
