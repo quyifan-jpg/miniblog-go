@@ -10,6 +10,7 @@ from tools.wikipedia_search import wikipedia_search
 from tools.google_news_discovery import google_news_discovery_run
 from tools.jikan_search import jikan_search
 from tools.embedding_search import embedding_search
+from tools.chunk_search import chunk_search
 from tools.social_media_search import social_media_search, social_media_trending_search
 
 
@@ -75,6 +76,7 @@ def search_agent_run(query: str) -> str:
                 wikipedia_search,
                 jikan_search,
                 embedding_search,
+                chunk_search,
                 social_media_search,
                 social_media_trending_search,
             ],
