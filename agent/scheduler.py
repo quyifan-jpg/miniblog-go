@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import signal
 import subprocess
@@ -93,10 +94,24 @@ def execute_task(task_id, command):
             print(f"ERROR: Transaction error for task {task_id}: {str(e)}")
             return
     print(f"INFO: Starting task {task_id}: {command}")
+
+    # Ensure subprocess uses the same python environment
+    env = os.environ.copy()
+    current_python_dir = os.path.dirname(sys.executable)
+    # Prepend the current python directory to PATH to ensure we use this environment's python/pip/etc
+    env["PATH"] = f"{current_python_dir}{os.pathsep}{env.get('PATH', '')}"
+
+    # Force use of current python executable if command starts with 'python'
+    if command.strip().startswith("python"):
+        # Replace only the first occurrence of "python" with the absolute path
+        command = command.replace("python", sys.executable, 1)
+        print(f"DEBUG: Updated command to use absolute python path: {command}")
+
     try:
         process = subprocess.Popen(
             command,
             shell=True,
+            env=env,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -175,10 +190,8 @@ def main():
     print("INFO: Starting task scheduler")
     tasks_db_path = get_tasks_db_path()
     cleanup_stuck_tasks()
-    scheduler_dir = os.path.dirname(tasks_db_path)
-    os.makedirs(scheduler_dir, exist_ok=True)
-    scheduler_db_path = os.path.join(scheduler_dir, "scheduler.sqlite")
-    jobstores = {"default": SQLAlchemyJobStore(url=f"sqlite:///{scheduler_db_path}")}
+    database_url = os.environ.get("DATABASE_URL", "")
+    jobstores = {"default": SQLAlchemyJobStore(url=database_url)}
     scheduler = BackgroundScheduler(jobstores=jobstores, daemon=True)
     scheduler.add_job(
         check_for_tasks,

@@ -106,7 +106,6 @@ def prepare_article_text(article):
 
 def store_embedding(tracking_db_path, article_id, embedding, model):
     from datetime import datetime
-    import sqlite3
     embedding_blob = np.array(embedding, dtype=np.float32).tobytes()
     query = """
     INSERT INTO article_embeddings 
@@ -117,10 +116,10 @@ def store_embedding(tracking_db_path, article_id, embedding, model):
     try:
         execute_query(tracking_db_path, query, params)
         return True
-    except sqlite3.IntegrityError:
-        print(f"Warning: Embedding already exists for article {article_id}")
-        return False
     except Exception as e:
+        if "Duplicate entry" in str(e) or "UNIQUE constraint" in str(e):
+            print(f"Warning: Embedding already exists for article {article_id}")
+            return False
         print(f"Error storing embedding: {str(e)}")
         return False
 
