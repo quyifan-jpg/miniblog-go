@@ -4,10 +4,19 @@ from fastapi import HTTPException
 from services.db_service import social_media_db
 from models.social_media_schemas import PaginatedPosts, Post
 from datetime import datetime, timedelta
+from services.redis_cache import async_redis_cache, build_cache_key
 
 
 class SocialMediaService:
     """Service for managing social media posts."""
+
+    _CACHE_MODULE = "social"
+    _CACHE_LIST_TTL_SECONDS = 120
+    _CACHE_STATS_TTL_SECONDS = 300
+    _CACHE_CONFIG_TTL_SECONDS = 1800
+
+    def _cache_key(self, endpoint: str, params: Dict[str, Any]) -> str:
+        return build_cache_key(self._CACHE_MODULE, endpoint, params)
 
     async def get_posts(
         self,
@@ -42,10 +51,10 @@ class SocialMediaService:
                 query_parts.append("AND categories LIKE ?")
                 query_params.append(f'%"{category}"%')
             if date_from:
-                query_parts.append("AND datetime(post_timestamp) >= datetime(?)")
+                query_parts.append("AND post_timestamp >= ?")
                 query_params.append(date_from)
             if date_to:
-                query_parts.append("AND datetime(post_timestamp) <= datetime(?)")
+                query_parts.append("AND post_timestamp <= ?")
                 query_params.append(date_to)
             if search:
                 query_parts.append("AND (post_text LIKE ? OR user_display_name LIKE ? OR user_handle LIKE ?)")
@@ -54,7 +63,7 @@ class SocialMediaService:
             count_query = " ".join(query_parts).replace("SELECT *", "SELECT COUNT(*)")
             total_posts = await social_media_db.execute_query(count_query, tuple(query_params), fetch=True, fetch_one=True)
             total_count = total_posts.get("COUNT(*)", 0) if total_posts else 0
-            query_parts.append("ORDER BY datetime(post_timestamp) DESC, post_id DESC")
+            query_parts.append("ORDER BY post_timestamp DESC, post_id DESC")
             query_parts.append("LIMIT ? OFFSET ?")
             query_params.extend([per_page, offset])
             posts_query = " ".join(query_parts)
@@ -140,13 +149,26 @@ class SocialMediaService:
 
     async def get_platforms(self) -> List[str]:
         """Get all platforms that have posts."""
+        cache_key = self._cache_key("platforms_list", {})
+        cached = await async_redis_cache.get_json(cache_key)
+        if isinstance(cached, list):
+            return cached
         query = "SELECT DISTINCT platform FROM posts ORDER BY platform"
         result = await social_media_db.execute_query(query, fetch=True)
-        return [row.get("platform", "") for row in result if row.get("platform")]
+        platforms = [row.get("platform", "") for row in result if row.get("platform")]
+        await async_redis_cache.set_json(cache_key, platforms, self._CACHE_CONFIG_TTL_SECONDS)
+        return platforms
 
     async def get_sentiments(self, date_from: Optional[str] = None, date_to: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get sentiment distribution with post counts."""
         try:
+            cache_key = self._cache_key(
+                "sentiments",
+                {"date_from": date_from, "date_to": date_to},
+            )
+            cached = await async_redis_cache.get_json(cache_key)
+            if isinstance(cached, list):
+                return cached
             query_parts = [
                 """
                 SELECT 
@@ -157,14 +179,16 @@ class SocialMediaService:
             ]
             params = []
             if date_from:
-                query_parts.append("AND datetime(post_timestamp) >= datetime(?)")
+                query_parts.append("AND post_timestamp >= ?")
                 params.append(date_from)
             if date_to:
-                query_parts.append("AND datetime(post_timestamp) <= datetime(?)")
+                query_parts.append("AND post_timestamp <= ?")
                 params.append(date_to)
             query_parts.append("GROUP BY sentiment ORDER BY post_count DESC")
             query = " ".join(query_parts)
-            return await social_media_db.execute_query(query, tuple(params), fetch=True)
+            result = await social_media_db.execute_query(query, tuple(params), fetch=True)
+            await async_redis_cache.set_json(cache_key, result, self._CACHE_STATS_TTL_SECONDS)
+            return result
         except Exception as e:
             if isinstance(e, HTTPException):
                 raise e
@@ -178,32 +202,48 @@ class SocialMediaService:
         date_to: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Get top users by post count."""
+        cache_key = self._cache_key(
+            "top_users",
+            {"platform": platform, "limit": limit, "date_from": date_from, "date_to": date_to},
+        )
+        cached = await async_redis_cache.get_json(cache_key)
+        if isinstance(cached, list):
+            return cached
         query_parts = ["SELECT user_handle, user_display_name, COUNT(*) as post_count", "FROM posts", "WHERE user_handle IS NOT NULL"]
         params = []
         if platform:
             query_parts.append("AND platform = ?")
             params.append(platform)
         if date_from:
-            query_parts.append("AND datetime(post_timestamp) >= datetime(?)")
+            query_parts.append("AND post_timestamp >= ?")
             params.append(date_from)
         if date_to:
-            query_parts.append("AND datetime(post_timestamp) <= datetime(?)")
+            query_parts.append("AND post_timestamp <= ?")
             params.append(date_to)
         query_parts.extend(["GROUP BY user_handle", "ORDER BY post_count DESC", "LIMIT ?"])
         params.append(limit)
         query = " ".join(query_parts)
-        return await social_media_db.execute_query(query, tuple(params), fetch=True)
+        result = await social_media_db.execute_query(query, tuple(params), fetch=True)
+        await async_redis_cache.set_json(cache_key, result, self._CACHE_STATS_TTL_SECONDS)
+        return result
 
     async def get_categories(self, date_from: Optional[str] = None, date_to: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get all categories with post counts."""
         try:
+            cache_key = self._cache_key(
+                "categories",
+                {"date_from": date_from, "date_to": date_to},
+            )
+            cached = await async_redis_cache.get_json(cache_key)
+            if isinstance(cached, list):
+                return cached
             query_parts = ["SELECT categories FROM posts WHERE categories IS NOT NULL"]
             params = []
             if date_from:
-                query_parts.append("AND datetime(post_timestamp) >= datetime(?)")
+                query_parts.append("AND post_timestamp >= ?")
                 params.append(date_from)
             if date_to:
-                query_parts.append("AND datetime(post_timestamp) <= datetime(?)")
+                query_parts.append("AND post_timestamp <= ?")
                 params.append(date_to) 
             query = " ".join(query_parts)
             result = await social_media_db.execute_query(query, tuple(params), fetch=True)
@@ -219,7 +259,9 @@ class SocialMediaService:
                                 category_counts[category] = 1
                     except json.JSONDecodeError:
                         pass
-            return [{"category": category, "post_count": count} for category, count in sorted(category_counts.items(), key=lambda x: x[1], reverse=True)]
+            result_payload = [{"category": category, "post_count": count} for category, count in sorted(category_counts.items(), key=lambda x: x[1], reverse=True)]
+            await async_redis_cache.set_json(cache_key, result_payload, self._CACHE_STATS_TTL_SECONDS)
+            return result_payload
         except Exception as e:
             if isinstance(e, HTTPException):
                 raise e
@@ -234,6 +276,13 @@ class SocialMediaService:
     ) -> List[Dict[str, Any]]:
         """Get users with their sentiment breakdown."""
         try:
+            cache_key = self._cache_key(
+                "users_sentiment",
+                {"limit": limit, "platform": platform, "date_from": date_from, "date_to": date_to},
+            )
+            cached = await async_redis_cache.get_json(cache_key)
+            if isinstance(cached, list):
+                return cached
             query_parts = [
                 """
                 SELECT 
@@ -253,10 +302,10 @@ class SocialMediaService:
                 query_parts.append("AND platform = ?")
                 params.append(platform)
             if date_from:
-                query_parts.append("AND datetime(post_timestamp) >= datetime(?)")
+                query_parts.append("AND post_timestamp >= ?")
                 params.append(date_from)
             if date_to:
-                query_parts.append("AND datetime(post_timestamp) <= datetime(?)")
+                query_parts.append("AND post_timestamp <= ?")
                 params.append(date_to)
             query_parts.extend(["GROUP BY user_handle, user_display_name", "ORDER BY total_posts DESC", "LIMIT ?"])
             params.append(limit)
@@ -268,6 +317,7 @@ class SocialMediaService:
                 user["negative_percent"] = (user["negative_count"] / total) * 100 if total > 0 else 0
                 user["neutral_percent"] = (user["neutral_count"] / total) * 100 if total > 0 else 0
                 user["critical_percent"] = (user["critical_count"] / total) * 100 if total > 0 else 0
+            await async_redis_cache.set_json(cache_key, result, self._CACHE_STATS_TTL_SECONDS)
             return result
         except Exception as e:
             if isinstance(e, HTTPException):
@@ -277,17 +327,24 @@ class SocialMediaService:
     async def get_category_sentiment(self, date_from: Optional[str] = None, date_to: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get sentiment distribution by category."""
         try:
+            cache_key = self._cache_key(
+                "categories_sentiment",
+                {"date_from": date_from, "date_to": date_to},
+            )
+            cached = await async_redis_cache.get_json(cache_key)
+            if isinstance(cached, list):
+                return cached
             date_filter = ""
             params = []
             if date_from or date_to:
                 date_filter = "WHERE "
                 if date_from:
-                    date_filter += "datetime(p.post_timestamp) >= datetime(?)"
+                    date_filter += "p.post_timestamp >= ?"
                     params.append(date_from)
                     if date_to:
                         date_filter += " AND "
                 if date_to:
-                    date_filter += "datetime(p.post_timestamp) <= datetime(?)"
+                    date_filter += "p.post_timestamp <= ?"
                     params.append(date_to)
             query = f"""
             WITH category_data AS (
@@ -323,6 +380,7 @@ class SocialMediaService:
                 category["negative_percent"] = (category["negative_count"] / total) * 100 if total > 0 else 0
                 category["neutral_percent"] = (category["neutral_count"] / total) * 100 if total > 0 else 0
                 category["critical_percent"] = (category["critical_count"] / total) * 100 if total > 0 else 0
+            await async_redis_cache.set_json(cache_key, result, self._CACHE_STATS_TTL_SECONDS)
             return result
         except Exception as e:
             if isinstance(e, HTTPException):
@@ -337,6 +395,13 @@ class SocialMediaService:
     ) -> List[Dict[str, Any]]:
         """Get trending topics with sentiment breakdown."""
         try:
+            cache_key = self._cache_key(
+                "topic_trends",
+                {"date_from": date_from, "date_to": date_to, "limit": limit},
+            )
+            cached = await async_redis_cache.get_json(cache_key)
+            if isinstance(cached, list):
+                return cached
             query_parts = [
                 """
                 WITH topic_data AS (
@@ -352,10 +417,10 @@ class SocialMediaService:
             ]
             params = []
             if date_from:
-                query_parts.append("AND datetime(post_timestamp) >= datetime(?)")
+                query_parts.append("AND post_timestamp >= ?")
                 params.append(date_from)
             if date_to:
-                query_parts.append("AND datetime(post_timestamp) <= datetime(?)")
+                query_parts.append("AND post_timestamp <= ?")
                 params.append(date_to)  
             query_parts.append(
                 """
@@ -387,6 +452,7 @@ class SocialMediaService:
                 topic["negative_percent"] = (topic["negative_count"] / total) * 100 if total > 0 else 0
                 topic["neutral_percent"] = (topic["neutral_count"] / total) * 100 if total > 0 else 0
                 topic["critical_percent"] = (topic["critical_count"] / total) * 100 if total > 0 else 0
+            await async_redis_cache.set_json(cache_key, result, self._CACHE_STATS_TTL_SECONDS)
             return result
         except Exception as e:
             if isinstance(e, HTTPException):
@@ -401,27 +467,34 @@ class SocialMediaService:
     ) -> List[Dict[str, Any]]:
         """Get sentiment trends over time."""
         try:
+            cache_key = self._cache_key(
+                "sentiment_over_time",
+                {"date_from": date_from, "date_to": date_to, "platform": platform},
+            )
+            cached = await async_redis_cache.get_json(cache_key)
+            if isinstance(cached, list):
+                return cached
             date_range_query = ""
             if date_from and date_to:
                 date_range_query = f"""
                 WITH RECURSIVE date_range(date) AS (
-                    SELECT date('{date_from}')
+                    SELECT DATE('{date_from}')
                     UNION ALL
-                    SELECT date(date, '+1 day')
+                    SELECT DATE_ADD(date, INTERVAL 1 DAY)
                     FROM date_range
-                    WHERE date < date('{date_to}')
+                    WHERE date < DATE('{date_to}')
                 )
                 SELECT date as post_date FROM date_range
                 """
             else:
-                days_ago = (datetime.now() - timedelta(days=30)).isoformat()
+                days_ago = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
                 date_range_query = f"""
                 WITH RECURSIVE date_range(date) AS (
-                    SELECT date('{days_ago}')
+                    SELECT DATE('{days_ago}')
                     UNION ALL
-                    SELECT date(date, '+1 day')
+                    SELECT DATE_ADD(date, INTERVAL 1 DAY)
                     FROM date_range
-                    WHERE date < date('now')
+                    WHERE date < CURDATE()
                 )
                 SELECT date as post_date FROM date_range
                 """
@@ -430,17 +503,17 @@ class SocialMediaService:
                 WITH dates AS (
                     {date_range_query}
                 )
-                SELECT 
+                SELECT
                     dates.post_date,
                     COALESCE(SUM(CASE WHEN sentiment = 'positive' THEN 1 ELSE 0 END), 0) as positive_count,
                     COALESCE(SUM(CASE WHEN sentiment = 'negative' THEN 1 ELSE 0 END), 0) as negative_count,
                     COALESCE(SUM(CASE WHEN sentiment = 'neutral' THEN 1 ELSE 0 END), 0) as neutral_count,
                     COALESCE(SUM(CASE WHEN sentiment = 'critical' THEN 1 ELSE 0 END), 0) as critical_count,
                     COUNT(posts.post_id) as total_count
-                FROM 
+                FROM
                     dates
-                LEFT JOIN 
-                    posts ON date(posts.post_timestamp) = dates.post_date
+                LEFT JOIN
+                    posts ON DATE(posts.post_timestamp) = dates.post_date
                 """
             ]
             params = []
@@ -456,6 +529,7 @@ class SocialMediaService:
                 day["negative_percent"] = (day["negative_count"] / total) * 100 if total > 0 else 0
                 day["neutral_percent"] = (day["neutral_count"] / total) * 100 if total > 0 else 0
                 day["critical_percent"] = (day["critical_count"] / total) * 100 if total > 0 else 0
+            await async_redis_cache.set_json(cache_key, result, self._CACHE_LIST_TTL_SECONDS)
             return result
         except Exception as e:
             if isinstance(e, HTTPException):
@@ -487,10 +561,10 @@ class SocialMediaService:
                 query_parts.append("AND sentiment = ?")
                 params.append(sentiment)  
             if date_from:
-                query_parts.append("AND datetime(post_timestamp) >= datetime(?)")
+                query_parts.append("AND post_timestamp >= ?")
                 params.append(date_from)
             if date_to:
-                query_parts.append("AND datetime(post_timestamp) <= datetime(?)")
+                query_parts.append("AND post_timestamp <= ?")
                 params.append(date_to)
             query_parts.extend(["ORDER BY total_engagement DESC", "LIMIT ?"])
             params.append(limit)
@@ -535,6 +609,13 @@ class SocialMediaService:
     ) -> Dict[str, Any]:
         """Get overall engagement statistics."""
         try:
+            cache_key = self._cache_key(
+                "engagement_stats",
+                {"date_from": date_from, "date_to": date_to},
+            )
+            cached = await async_redis_cache.get_json(cache_key)
+            if isinstance(cached, dict):
+                return cached
             query_parts = [
                 """
                 SELECT 
@@ -556,10 +637,10 @@ class SocialMediaService:
             ]
             params = []
             if date_from:
-                query_parts.append("AND datetime(post_timestamp) >= datetime(?)")
+                query_parts.append("AND post_timestamp >= ?")
                 params.append(date_from)
             if date_to:
-                query_parts.append("AND datetime(post_timestamp) <= datetime(?)")
+                query_parts.append("AND post_timestamp <= ?")
                 params.append(date_to)
             query = " ".join(query_parts)
             result = await social_media_db.execute_query(query, tuple(params), fetch=True, fetch_one=True)
@@ -579,9 +660,9 @@ class SocialMediaService:
                 """
             ]
             if date_from:
-                platform_query_parts.append("AND datetime(post_timestamp) >= datetime(?)")
+                platform_query_parts.append("AND post_timestamp >= ?")
             if date_to:
-                platform_query_parts.append("AND datetime(post_timestamp) <= datetime(?)")
+                platform_query_parts.append("AND post_timestamp <= ?")
             platform_query_parts.extend([
                 "GROUP BY platform",
                 "ORDER BY post_count DESC",
@@ -593,6 +674,7 @@ class SocialMediaService:
                 fetch=True
             )
             result_dict["platforms"] = platforms
+            await async_redis_cache.set_json(cache_key, result_dict, self._CACHE_STATS_TTL_SECONDS)
             return result_dict
         except Exception as e:
             if isinstance(e, HTTPException):

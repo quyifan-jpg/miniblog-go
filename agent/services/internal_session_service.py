@@ -6,6 +6,7 @@ from db.config import get_db_path
 from db.agent_config_v2 import INITIAL_SESSION_STATE
 from contextlib import contextmanager
 from db.connection import db_connection as shared_db_connection
+from services.redis_cache import build_cache_key, sync_redis_cache
 
 
 @contextmanager
@@ -19,8 +20,30 @@ def get_db_connection(db_name: str):
 class SessionService:
     """Service for managing internal session operations."""
 
+    _CACHE_TTL_SECONDS = 45
+    _CACHE_MODULE = "session"
+    _CACHE_ENDPOINT = "get_session"
+    _PODCAST_STATUS_MODULE = "podcast"
+    _PODCAST_STATUS_ENDPOINT = "status"
+
+    @staticmethod
+    def _session_cache_key(session_id: str) -> str:
+        return build_cache_key(SessionService._CACHE_MODULE, SessionService._CACHE_ENDPOINT, {"session_id": session_id})
+
+    @staticmethod
+    def _podcast_status_cache_key(session_id: str) -> str:
+        return build_cache_key(
+            SessionService._PODCAST_STATUS_MODULE,
+            SessionService._PODCAST_STATUS_ENDPOINT,
+            {"session_id": session_id},
+        )
+
     @staticmethod
     def get_session(session_id: str) -> Dict[str, Any]:
+        cache_key = SessionService._session_cache_key(session_id)
+        cached_session = sync_redis_cache.get_json(cache_key)
+        if isinstance(cached_session, dict):
+            return cached_session
         try:
             with get_db_connection("internal_sessions_db") as conn:
                 cursor = conn.cursor()
@@ -39,6 +62,7 @@ class SessionService:
                         session_dict["state"] = json.loads(session_dict["state"])
                     except json.JSONDecodeError:
                         session_dict["state"] = {}
+                sync_redis_cache.set_json(cache_key, session_dict, SessionService._CACHE_TTL_SECONDS)
                 return session_dict
         except Exception as e:
             if isinstance(e, HTTPException):
@@ -58,7 +82,13 @@ class SessionService:
                 current_time = datetime.now().isoformat()
                 cursor.execute(insert_query, (session_id, state_json, current_time))
                 conn.commit()
-                return {"session_id": session_id, "state": INITIAL_SESSION_STATE, "created_at": current_time}
+                session_data = {"session_id": session_id, "state": INITIAL_SESSION_STATE, "created_at": current_time}
+                sync_redis_cache.set_json(
+                    SessionService._session_cache_key(session_id),
+                    session_data,
+                    SessionService._CACHE_TTL_SECONDS,
+                )
+                return session_data
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error initializing session: {str(e)}")
 
@@ -68,7 +98,6 @@ class SessionService:
             state_json = json.dumps(state)
             with get_db_connection("internal_sessions_db") as conn:
                 cursor = conn.cursor()
-                conn.execute("BEGIN IMMEDIATE")
                 existing_query = "SELECT session_id FROM session_state WHERE session_id = ?"
                 cursor.execute(existing_query, (session_id,))
                 existing_session = cursor.fetchone()
@@ -80,6 +109,8 @@ class SessionService:
                     current_time = datetime.now().isoformat()
                     cursor.execute(insert_query, (session_id, state_json, current_time))
                 conn.commit()
+            sync_redis_cache.delete(SessionService._session_cache_key(session_id))
+            sync_redis_cache.delete(SessionService._podcast_status_cache_key(session_id))
             return SessionService.get_session(session_id)
         except Exception as e:
             if isinstance(e, HTTPException):
@@ -99,6 +130,8 @@ class SessionService:
                 delete_query = "DELETE FROM session_state WHERE session_id = ?"
                 cursor.execute(delete_query, (session_id,))
                 conn.commit()
+                sync_redis_cache.delete(SessionService._session_cache_key(session_id))
+                sync_redis_cache.delete(SessionService._podcast_status_cache_key(session_id))
                 return {"message": f"Session with ID {session_id} successfully deleted"}
         except Exception as e:
             if isinstance(e, HTTPException):

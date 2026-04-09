@@ -12,6 +12,7 @@ from services.celery_tasks import agent_chat
 from dotenv import load_dotenv
 from services.internal_session_service import SessionService
 from db.connection import db_connection
+from services.redis_cache import async_redis_cache, build_cache_key
 
 load_dotenv()
 
@@ -40,6 +41,10 @@ class PodcastAgentService:
         self.redis_pool = ConnectionPool.from_url(redis_url, max_connections=10)
         self.redis = Redis(connection_pool=self.redis_pool)
         self.using_mysql = os.environ.get("DATABASE_URL", "").startswith(("mysql://", "mysql+pymysql://"))
+        self.status_cache_ttl_seconds = 30
+
+    def _status_cache_key(self, session_id: str) -> str:
+        return build_cache_key("podcast", "status", {"session_id": session_id})
 
     async def _fetchone(self, db_path, query, params=()):
         def _run():
@@ -215,6 +220,10 @@ class PodcastAgentService:
             )
 
     async def get_session_state(self, session_id):
+        cache_key = self._status_cache_key(session_id)
+        cached_status = await async_redis_cache.get_json(cache_key)
+        if isinstance(cached_status, dict):
+            return cached_status
         try:
             if not self.using_mysql:
                 db_path = get_agent_session_db_path()
@@ -223,23 +232,27 @@ class PodcastAgentService:
                 row = {"session_data": "{}"}
 
             if not row and not self.using_mysql:
-                return {
+                no_data_response = {
                     "session_id": session_id,
                     "response": "No session data found.",
                     "stage": "idle",
                     "session_state": "{}",
                     "is_processing": False,
                 }
+                await async_redis_cache.set_json(cache_key, no_data_response, self.status_cache_ttl_seconds)
+                return no_data_response
 
             session = SessionService.get_session(session_id)
             session_state = session.get("state", {})
-            return {
+            status_response = {
                 "session_id": session_id,
                 "response": "",
                 "stage": session_state.get("stage", "idle"),
                 "session_state": json.dumps(session_state),
                 "is_processing": False,
             }
+            await async_redis_cache.set_json(cache_key, status_response, self.status_cache_ttl_seconds)
+            return status_response
         except Exception as e:
             return {
                 "session_id": session_id,
@@ -304,6 +317,7 @@ class PodcastAgentService:
 
     async def delete_session(self, session_id: str):
         try:
+            await async_redis_cache.delete(self._status_cache_key(session_id))
             row = {"session_data": "{}"} if self.using_mysql else await self._fetchone(
                 get_agent_session_db_path(), "SELECT session_data FROM podcast_sessions WHERE session_id = ?", (session_id,)
             )

@@ -1,6 +1,12 @@
 import json
 
 from db.connection import db_connection
+from services.redis_cache import sync_redis_cache
+
+
+def invalidate_social_cache():
+    # Posts are analytics source-of-truth; invalidate all social reads after writes.
+    sync_redis_cache.delete_by_prefix("social:")
 
 
 def create_connection(db_file="x_posts.db"):
@@ -66,6 +72,7 @@ def insert_post(conn, post_data):
     sql = f"INSERT INTO posts ({columns}) VALUES ({placeholders})"
     conn.execute(sql, values)
     conn.commit()
+    invalidate_social_cache()
 
 
 def check_and_store_post(conn, post_data):
@@ -100,6 +107,7 @@ def update_changed_metrics(conn, existing_post, new_data):
         params = list(changes.values()) + [existing_post["post_id"]]
         conn.execute(sql, params)
         conn.commit()
+        invalidate_social_cache()
 
 
 def update_posts_with_analysis(conn, post_ids, analysis_results):
@@ -126,3 +134,4 @@ def update_posts_with_analysis(conn, post_ids, analysis_results):
                 (analysis.get("sentiment"), categories, tags, analysis.get("reasoning"), post_id),
             )
     conn.commit()
+    invalidate_social_cache()
