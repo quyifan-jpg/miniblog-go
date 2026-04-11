@@ -1,6 +1,8 @@
 import hashlib
 import json
 import os
+import asyncio
+import uuid
 from typing import Any, Dict, Iterable, Optional
 
 import redis
@@ -133,6 +135,73 @@ class AsyncRedisCache:
             await self._client.delete(*keys)
         except Exception:
             pass
+
+    async def _release_lock(self, lock_key: str, owner_token: str) -> None:
+        release_lua = """
+        local lock_value = redis.call('GET', KEYS[1])
+        if lock_value == ARGV[1] then
+            redis.call('DEL', KEYS[1])
+            return 1
+        end
+        return 0
+        """
+        try:
+            await self._client.eval(release_lua, 1, lock_key, owner_token)
+        except Exception:
+            pass
+
+    async def get_or_set_json_singleflight(
+        self,
+        key: str,
+        ttl_seconds: int,
+        loader,
+        lock_ttl_seconds: int = 8,
+        wait_timeout_ms: int = 1200,
+        retry_interval_ms: int = 80,
+    ) -> Any:
+        cached = await self.get_json(key)
+        if cached is not None:
+            return cached
+
+        lock_key = f"lock:singleflight:{key}"
+        owner_token = str(uuid.uuid4())
+        got_lock = False
+        try:
+            got_lock = bool(
+                await self._client.set(
+                    lock_key,
+                    owner_token,
+                    nx=True,
+                    ex=max(1, lock_ttl_seconds),
+                )
+            )
+        except Exception:
+            got_lock = False
+
+        if got_lock:
+            try:
+                # Double-check after acquiring lock.
+                cached_after_lock = await self.get_json(key)
+                if cached_after_lock is not None:
+                    return cached_after_lock
+                value = await loader()
+                await self.set_json(key, value, ttl_seconds)
+                return value
+            finally:
+                await self._release_lock(lock_key, owner_token)
+
+        waited_ms = 0
+        while waited_ms < wait_timeout_ms:
+            await asyncio.sleep(retry_interval_ms / 1000.0)
+            waited_ms += retry_interval_ms
+            cached_retry = await self.get_json(key)
+            if cached_retry is not None:
+                return cached_retry
+
+        # Fallback: avoid request starvation if lock owner failed.
+        value = await loader()
+        await self.set_json(key, value, ttl_seconds)
+        return value
 
 
 sync_redis_cache = SyncRedisCache()
