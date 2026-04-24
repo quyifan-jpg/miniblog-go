@@ -77,7 +77,7 @@ wheels/
 
 # Jupyter Notebook
 .ipynb_checkpoints
-
+.claude/
 # pytest
 .pytest_cache/
 .tox/
@@ -254,6 +254,11 @@ backend/eino-practice/examples/**/__debug_bin*
 agent/browsers/
 agent/podcasts/audio/
 agent/podcasts/recordings/
+agent/podcasts/images/podcast_banner_*.png
+
+# runtime 临时文件
+.pids
+agent/venv_sys/
 
 # 静态资源（如果不需要版本控制）
 # agent/static/
@@ -285,3 +290,4 @@ demos/
 *.db
 *.sqlite
 agent/databases/
+agent/milvus_data/
