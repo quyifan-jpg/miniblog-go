@@ -42,12 +42,17 @@ _PUBLIC_PATHS = frozenset([
     "/redoc",
     "/favicon.ico",
     "/manifest.json",
+    "/api/auth/register",
+    "/api/auth/login",
 ])
 
 # Path prefixes that REQUIRE authentication
+# Tighten this list gradually as the frontend adopts token auth.
 _PROTECTED_PREFIXES = [
-    "/api/v1/podcast-agent",
-    # Add more as you migrate: "/api/v1/podcasts", "/api/v1/tasks", etc.
+    "/api/auth/me",          # user profile — always needs token
+    "/api/podcast-agent",   # chat sessions — always user-scoped
+    # "/api/podcasts",       # uncomment to protect podcast management
+    # "/api/tasks",          # uncomment to protect task management
 ]
 
 

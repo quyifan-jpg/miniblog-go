@@ -7,6 +7,8 @@ import os
 import aiofiles
 from contextlib import asynccontextmanager
 from routers import article_router, podcast_router, source_router, task_router, podcast_config_router, async_podcast_agent_router, social_media_router
+from routers import auth_router
+from middleware.auth import AuthMiddleware
 from services.db_init import init_databases
 from dotenv import load_dotenv
 
@@ -45,8 +47,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(AuthMiddleware)
 
 
+app.include_router(auth_router.router, prefix="/api/auth", tags=["auth"])
 app.include_router(article_router.router, prefix="/api/articles", tags=["articles"])
 app.include_router(source_router.router, prefix="/api/sources", tags=["sources"])
 app.include_router(podcast_router.router, prefix="/api/podcasts", tags=["podcasts"])
