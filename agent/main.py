@@ -25,7 +25,16 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from loguru import logger
+from fastapi.responses import FileResponse, StreamingResponse
+import uvicorn
+import os
+import aiofiles
+from contextlib import asynccontextmanager
+from routers import article_router, podcast_router, source_router, task_router, podcast_config_router, async_podcast_agent_router, social_media_router
+from routers import auth_router
+from middleware.auth import AuthMiddleware
+from services.db_init import init_databases
+from dotenv import load_dotenv
 
 # ── Core infrastructure (must be imported before other app modules) ────────────
 from core.config import settings
@@ -152,12 +161,19 @@ app = FastAPI(
     docs_url="/docs" if not settings.is_production else None,
     redoc_url="/redoc" if not settings.is_production else None,
 )
+app.add_middleware(AuthMiddleware)
 
 # ── Exception handlers ─────────────────────────────────────────────────────────
 register_exception_handlers(app)
 
-# ── Middleware ─────────────────────────────────────────────────────────────────
-# Order matters: middleware is applied in reverse registration order (last-in, first-out).
+app.include_router(auth_router.router, prefix="/api/auth", tags=["auth"])
+app.include_router(article_router.router, prefix="/api/articles", tags=["articles"])
+app.include_router(source_router.router, prefix="/api/sources", tags=["sources"])
+app.include_router(podcast_router.router, prefix="/api/podcasts", tags=["podcasts"])
+app.include_router(task_router.router, prefix="/api/tasks", tags=["tasks"])
+app.include_router(podcast_config_router.router, prefix="/api/podcast-configs", tags=["podcast-configs"])
+app.include_router(async_podcast_agent_router.router, prefix="/api/podcast-agent", tags=["podcast-agent"])
+app.include_router(social_media_router.router, prefix="/api/social-media", tags=["social-media"])
 
 # 1. Request logging middleware (import after app creation to avoid circular imports)
 from middleware.request_logging import RequestLoggingMiddleware  # noqa: E402

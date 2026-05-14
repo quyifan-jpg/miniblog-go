@@ -165,6 +165,8 @@ pydub==0.25.1
 pyee==13.0.0
 PyMySQL==1.1.1
 PyJWT==2.9.0
+bcrypt==5.0.0
+email-validator==2.3.0
 pyparsing==3.2.3
 pyperclip==1.9.0
 python-dotenv==1.1.0

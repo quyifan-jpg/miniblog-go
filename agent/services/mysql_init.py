@@ -207,27 +207,15 @@ MYSQL_TABLE_DDLS = [
     )
     """,
     """
-    CREATE TABLE IF NOT EXISTS article_chunks (
-        id          BIGINT PRIMARY KEY AUTO_INCREMENT,
-        article_id  BIGINT NOT NULL,
-        chunk_index INT    NOT NULL,
-        chunk_text  TEXT   NOT NULL,
-        created_at  TEXT NOT NULL,
-        INDEX idx_ac_article_id (article_id)
-    )
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS podcast_sessions (
-        session_id VARCHAR(255) NOT NULL PRIMARY KEY,
-        user_id TEXT,
-        memory JSON,
-        session_data JSON,
-        extra_data JSON,
-        created_at BIGINT,
-        updated_at BIGINT,
-        agent_id TEXT,
-        team_session_id TEXT,
-        agent_data JSON
+    CREATE TABLE IF NOT EXISTS users (
+        id               INT AUTO_INCREMENT PRIMARY KEY,
+        email            VARCHAR(255) NOT NULL UNIQUE,
+        username         VARCHAR(100) NOT NULL UNIQUE,
+        hashed_password  VARCHAR(255) NOT NULL,
+        is_active        BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                             ON UPDATE CURRENT_TIMESTAMP
     )
     """,
 ]
