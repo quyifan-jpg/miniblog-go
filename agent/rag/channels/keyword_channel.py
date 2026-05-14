@@ -29,8 +29,7 @@ import time
 from loguru import logger
 
 from rag.channels.base import SearchChannel
-from rag.keyword_index import get_bm25_index
-from rag.models import ChannelResult, ChannelType, RetrievedChunk, SearchContext
+from rag.models import ChannelResult, ChannelType, MetadataKey, RetrievedChunk, SearchContext
 
 
 class KeywordChannel(SearchChannel):
@@ -108,10 +107,9 @@ class KeywordChannel(SearchChannel):
                 score=normalized,
                 source_channel=ChannelType.KEYWORD,
                 metadata={
-                    "published_date": row.get("published_date", ""),
-                    "source_id": str(row.get("source_id", "")),
-                    "match_type": "title" if title_match else "content",
-                    "bm25_score": raw_score,
+                    MetadataKey.PUBLISHED_DATE: row.get("published_date", ""),
+                    MetadataKey.SOURCE_ID:      str(row.get("source_id", "")),
+                    MetadataKey.MATCH_TYPE:     "title" if title_match else "content",
                 },
             ))
 

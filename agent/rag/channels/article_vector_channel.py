@@ -17,7 +17,7 @@ import time
 from loguru import logger
 
 from rag.channels.base import SearchChannel
-from rag.models import ChannelResult, ChannelType, RetrievedChunk, SearchContext
+from rag.models import ChannelResult, ChannelType, MetadataKey, RetrievedChunk, SearchContext
 
 EMBEDDING_MODEL = "text-embedding-3-small"
 MIN_SIMILARITY  = 0.35   # IP score threshold; post-processors filter further
@@ -93,8 +93,8 @@ class ArticleVectorChannel(SearchChannel):
                 score=float(h["score"]),
                 source_channel=ChannelType.ARTICLE_VECTOR,
                 metadata={
-                    "published_date": str(article.get("published_date", "")),
-                    "source_id":      str(article.get("source_id", "")),
+                    MetadataKey.PUBLISHED_DATE: article.get("published_date", ""),
+                    MetadataKey.SOURCE_ID:      str(article.get("source_id", "")),
                 },
             ))
 
