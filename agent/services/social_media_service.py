@@ -1,9 +1,11 @@
 import json
-from typing import List, Optional, Dict, Any
-from fastapi import HTTPException
-from services.db_service import social_media_db
-from models.social_media_schemas import PaginatedPosts, Post
 from datetime import datetime, timedelta
+from typing import Any
+
+from fastapi import HTTPException
+
+from models.social_media_schemas import PaginatedPosts
+from services.db_service import social_media_db
 from services.redis_cache import async_redis_cache, build_cache_key
 
 
@@ -20,7 +22,7 @@ class SocialMediaService:
 
         self.using_mysql = os.environ.get("DATABASE_URL", "").startswith(("mysql://", "mysql+pymysql://"))
 
-    def _cache_key(self, endpoint: str, params: Dict[str, Any]) -> str:
+    def _cache_key(self, endpoint: str, params: dict[str, Any]) -> str:
         return build_cache_key(self._CACHE_MODULE, endpoint, params)
 
     async def _cached(self, cache_key: str, ttl_seconds: int, loader):
@@ -34,13 +36,13 @@ class SocialMediaService:
         self,
         page: int = 1,
         per_page: int = 10,
-        platform: Optional[str] = None,
-        user_handle: Optional[str] = None,
-        sentiment: Optional[str] = None,
-        category: Optional[str] = None,
-        date_from: Optional[str] = None,
-        date_to: Optional[str] = None,
-        search: Optional[str] = None,
+        platform: str | None = None,
+        user_handle: str | None = None,
+        sentiment: str | None = None,
+        category: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        search: str | None = None,
     ) -> PaginatedPosts:
         """Get social media posts with pagination and filtering."""
         try:
@@ -73,7 +75,9 @@ class SocialMediaService:
                 search_param = f"%{search}%"
                 query_params.extend([search_param, search_param, search_param])
             count_query = " ".join(query_parts).replace("SELECT *", "SELECT COUNT(*)")
-            total_posts = await social_media_db.execute_query(count_query, tuple(query_params), fetch=True, fetch_one=True)
+            total_posts = await social_media_db.execute_query(
+                count_query, tuple(query_params), fetch=True, fetch_one=True
+            )
             total_count = total_posts.get("COUNT(*)", 0) if total_posts else 0
             query_parts.append("ORDER BY post_timestamp DESC, post_id DESC")
             query_parts.append("LIMIT ? OFFSET ?")
@@ -123,7 +127,7 @@ class SocialMediaService:
                 raise e
             raise HTTPException(status_code=500, detail=f"Error fetching social media posts: {str(e)}")
 
-    async def get_post(self, post_id: str) -> Dict[str, Any]:
+    async def get_post(self, post_id: str) -> dict[str, Any]:
         """Get a specific post by ID."""
         try:
             query = "SELECT * FROM posts WHERE post_id = ?"
@@ -159,23 +163,26 @@ class SocialMediaService:
                 raise e
             raise HTTPException(status_code=500, detail=f"Error fetching social media post: {str(e)}")
 
-    async def get_platforms(self) -> List[str]:
+    async def get_platforms(self) -> list[str]:
         """Get all platforms that have posts."""
         cache_key = self._cache_key("platforms_list", {})
+
         async def _loader():
             query = "SELECT DISTINCT platform FROM posts ORDER BY platform"
             result = await social_media_db.execute_query(query, fetch=True)
             return [row.get("platform", "") for row in result if row.get("platform")]
+
         result = await self._cached(cache_key, self._CACHE_CONFIG_TTL_SECONDS, _loader)
         return result if isinstance(result, list) else []
 
-    async def get_sentiments(self, date_from: Optional[str] = None, date_to: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def get_sentiments(self, date_from: str | None = None, date_to: str | None = None) -> list[dict[str, Any]]:
         """Get sentiment distribution with post counts."""
         try:
             cache_key = self._cache_key(
                 "sentiments",
                 {"date_from": date_from, "date_to": date_to},
             )
+
             async def _loader():
                 query_parts = [
                     """
@@ -195,6 +202,7 @@ class SocialMediaService:
                 query_parts.append("GROUP BY sentiment ORDER BY post_count DESC")
                 query = " ".join(query_parts)
                 return await social_media_db.execute_query(query, tuple(params), fetch=True)
+
             result = await self._cached(cache_key, self._CACHE_STATS_TTL_SECONDS, _loader)
             return result if isinstance(result, list) else []
         except Exception as e:
@@ -203,19 +211,24 @@ class SocialMediaService:
             raise HTTPException(status_code=500, detail=f"Error fetching sentiments: {str(e)}")
 
     async def get_top_users(
-        self, 
-        platform: Optional[str] = None,
+        self,
+        platform: str | None = None,
         limit: int = 10,
-        date_from: Optional[str] = None,
-        date_to: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        date_from: str | None = None,
+        date_to: str | None = None,
+    ) -> list[dict[str, Any]]:
         """Get top users by post count."""
         cache_key = self._cache_key(
             "top_users",
             {"platform": platform, "limit": limit, "date_from": date_from, "date_to": date_to},
         )
+
         async def _loader():
-            query_parts = ["SELECT user_handle, user_display_name, COUNT(*) as post_count", "FROM posts", "WHERE user_handle IS NOT NULL"]
+            query_parts = [
+                "SELECT user_handle, user_display_name, COUNT(*) as post_count",
+                "FROM posts",
+                "WHERE user_handle IS NOT NULL",
+            ]
             params = []
             if platform:
                 query_parts.append("AND platform = ?")
@@ -230,16 +243,18 @@ class SocialMediaService:
             params.append(limit)
             query = " ".join(query_parts)
             return await social_media_db.execute_query(query, tuple(params), fetch=True)
+
         result = await self._cached(cache_key, self._CACHE_STATS_TTL_SECONDS, _loader)
         return result if isinstance(result, list) else []
 
-    async def get_categories(self, date_from: Optional[str] = None, date_to: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def get_categories(self, date_from: str | None = None, date_to: str | None = None) -> list[dict[str, Any]]:
         """Get all categories with post counts."""
         try:
             cache_key = self._cache_key(
                 "categories",
                 {"date_from": date_from, "date_to": date_to},
             )
+
             async def _loader():
                 query_parts = ["SELECT categories FROM posts WHERE categories IS NOT NULL"]
                 params = []
@@ -263,7 +278,11 @@ class SocialMediaService:
                                     category_counts[category] = 1
                         except json.JSONDecodeError:
                             pass
-                return [{"category": category, "post_count": count} for category, count in sorted(category_counts.items(), key=lambda x: x[1], reverse=True)]
+                return [
+                    {"category": category, "post_count": count}
+                    for category, count in sorted(category_counts.items(), key=lambda x: x[1], reverse=True)
+                ]
+
             result_payload = await self._cached(cache_key, self._CACHE_STATS_TTL_SECONDS, _loader)
             return result_payload if isinstance(result_payload, list) else []
         except Exception as e:
@@ -274,16 +293,17 @@ class SocialMediaService:
     async def get_user_sentiment(
         self,
         limit: int = 10,
-        platform: Optional[str] = None,
-        date_from: Optional[str] = None,
-        date_to: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        platform: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+    ) -> list[dict[str, Any]]:
         """Get users with their sentiment breakdown."""
         try:
             cache_key = self._cache_key(
                 "users_sentiment",
                 {"limit": limit, "platform": platform, "date_from": date_from, "date_to": date_to},
             )
+
             async def _loader():
                 query_parts = [
                     """
@@ -320,6 +340,7 @@ class SocialMediaService:
                     user["neutral_percent"] = (user["neutral_count"] / total) * 100 if total > 0 else 0
                     user["critical_percent"] = (user["critical_count"] / total) * 100 if total > 0 else 0
                 return result
+
             result = await self._cached(cache_key, self._CACHE_STATS_TTL_SECONDS, _loader)
             return result if isinstance(result, list) else []
         except Exception as e:
@@ -327,13 +348,16 @@ class SocialMediaService:
                 raise e
             raise HTTPException(status_code=500, detail=f"Error fetching user sentiment: {str(e)}")
 
-    async def get_category_sentiment(self, date_from: Optional[str] = None, date_to: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def get_category_sentiment(
+        self, date_from: str | None = None, date_to: str | None = None
+    ) -> list[dict[str, Any]]:
         """Get sentiment distribution by category."""
         try:
             cache_key = self._cache_key(
                 "categories_sentiment",
                 {"date_from": date_from, "date_to": date_to},
             )
+
             async def _loader():
                 query_parts = ["SELECT categories, sentiment FROM posts WHERE categories IS NOT NULL"]
                 params = []
@@ -345,7 +369,7 @@ class SocialMediaService:
                     params.append(date_to)
                 rows = await social_media_db.execute_query(" ".join(query_parts), tuple(params), fetch=True)
 
-                category_counts: Dict[str, Dict[str, int]] = {}
+                category_counts: dict[str, dict[str, int]] = {}
                 for row in rows:
                     categories_raw = row.get("categories")
                     if not categories_raw:
@@ -383,6 +407,7 @@ class SocialMediaService:
                     category["neutral_percent"] = (category["neutral_count"] / total) * 100 if total > 0 else 0
                     category["critical_percent"] = (category["critical_count"] / total) * 100 if total > 0 else 0
                 return result
+
             result = await self._cached(cache_key, self._CACHE_STATS_TTL_SECONDS, _loader)
             return result if isinstance(result, list) else []
         except Exception as e:
@@ -391,17 +416,15 @@ class SocialMediaService:
             raise HTTPException(status_code=500, detail=f"Error fetching category sentiment: {str(e)}")
 
     async def get_trending_topics(
-        self, 
-        date_from: Optional[str] = None,
-        date_to: Optional[str] = None,
-        limit: int = 10
-    ) -> List[Dict[str, Any]]:
+        self, date_from: str | None = None, date_to: str | None = None, limit: int = 10
+    ) -> list[dict[str, Any]]:
         """Get trending topics with sentiment breakdown."""
         try:
             cache_key = self._cache_key(
                 "topic_trends",
                 {"date_from": date_from, "date_to": date_to, "limit": limit},
             )
+
             async def _loader():
                 query_parts = ["SELECT tags, sentiment FROM posts WHERE tags IS NOT NULL"]
                 params = []
@@ -413,7 +436,7 @@ class SocialMediaService:
                     params.append(date_to)
                 rows = await social_media_db.execute_query(" ".join(query_parts), tuple(params), fetch=True)
 
-                topic_counts: Dict[str, Dict[str, int]] = {}
+                topic_counts: dict[str, dict[str, int]] = {}
                 for row in rows:
                     tags_raw = row.get("tags")
                     if not tags_raw:
@@ -451,6 +474,7 @@ class SocialMediaService:
                     topic["neutral_percent"] = (topic["neutral_count"] / total) * 100 if total > 0 else 0
                     topic["critical_percent"] = (topic["critical_count"] / total) * 100 if total > 0 else 0
                 return result
+
             result = await self._cached(cache_key, self._CACHE_STATS_TTL_SECONDS, _loader)
             return result if isinstance(result, list) else []
         except Exception as e:
@@ -459,17 +483,15 @@ class SocialMediaService:
             raise HTTPException(status_code=500, detail=f"Error fetching trending topics: {str(e)}")
 
     async def get_sentiment_over_time(
-        self, 
-        date_from: Optional[str] = None,
-        date_to: Optional[str] = None,
-        platform: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        self, date_from: str | None = None, date_to: str | None = None, platform: str | None = None
+    ) -> list[dict[str, Any]]:
         """Get sentiment trends over time."""
         try:
             cache_key = self._cache_key(
                 "sentiment_over_time",
                 {"date_from": date_from, "date_to": date_to, "platform": platform},
             )
+
             async def _loader():
                 date_range_query = ""
                 if date_from and date_to:
@@ -527,6 +549,7 @@ class SocialMediaService:
                     day["neutral_percent"] = (day["neutral_count"] / total) * 100 if total > 0 else 0
                     day["critical_percent"] = (day["critical_count"] / total) * 100 if total > 0 else 0
                 return result
+
             result = await self._cached(cache_key, self._CACHE_LIST_TTL_SECONDS, _loader)
             return result if isinstance(result, list) else []
         except Exception as e:
@@ -535,12 +558,8 @@ class SocialMediaService:
             raise HTTPException(status_code=500, detail=f"Error fetching sentiment over time: {str(e)}")
 
     async def get_influential_posts(
-        self, 
-        sentiment: Optional[str] = None,
-        limit: int = 5,
-        date_from: Optional[str] = None,
-        date_to: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        self, sentiment: str | None = None, limit: int = 5, date_from: str | None = None, date_to: str | None = None
+    ) -> list[dict[str, Any]]:
         """Get most influential posts by engagement, optionally filtered by sentiment."""
         try:
             query_parts = [
@@ -557,7 +576,7 @@ class SocialMediaService:
             params = []
             if sentiment:
                 query_parts.append("AND sentiment = ?")
-                params.append(sentiment)  
+                params.append(sentiment)
             if date_from:
                 query_parts.append("AND post_timestamp >= ?")
                 params.append(date_from)
@@ -600,17 +619,14 @@ class SocialMediaService:
                 raise e
             raise HTTPException(status_code=500, detail=f"Error fetching influential posts: {str(e)}")
 
-    async def get_engagement_stats(
-        self,
-        date_from: Optional[str] = None,
-        date_to: Optional[str] = None
-    ) -> Dict[str, Any]:
+    async def get_engagement_stats(self, date_from: str | None = None, date_to: str | None = None) -> dict[str, Any]:
         """Get overall engagement statistics."""
         try:
             cache_key = self._cache_key(
                 "engagement_stats",
                 {"date_from": date_from, "date_to": date_to},
             )
+
             async def _loader():
                 query_parts = [
                     """
@@ -659,9 +675,7 @@ class SocialMediaService:
                 result_dict["max_views"] = result_dict.get("max_views") or 0
                 result_dict["total_posts"] = result_dict.get("total_posts") or 0
                 result_dict["unique_authors"] = result_dict.get("unique_authors") or 0
-                result_dict["avg_engagement"] = (
-                    avg_replies + avg_retweets + avg_likes + avg_bookmarks
-                )
+                result_dict["avg_engagement"] = avg_replies + avg_retweets + avg_likes + avg_bookmarks
                 platform_query_parts = [
                     """
                     SELECT 
@@ -675,20 +689,19 @@ class SocialMediaService:
                     platform_query_parts.append("AND post_timestamp >= ?")
                 if date_to:
                     platform_query_parts.append("AND post_timestamp <= ?")
-                platform_query_parts.extend([
-                    "GROUP BY platform",
-                    "ORDER BY post_count DESC",
-                    "LIMIT 10"
-                ])
+                platform_query_parts.extend(["GROUP BY platform", "ORDER BY post_count DESC", "LIMIT 10"])
                 platforms = await social_media_db.execute_query(
-                    " ".join(platform_query_parts),
-                    tuple(params),
-                    fetch=True
+                    " ".join(platform_query_parts), tuple(params), fetch=True
                 )
                 result_dict["platforms"] = platforms
                 return result_dict
+
             result_dict = await self._cached(cache_key, self._CACHE_STATS_TTL_SECONDS, _loader)
-            return result_dict if isinstance(result_dict, dict) else {"avg_engagement": 0, "total_posts": 0, "unique_authors": 0}
+            return (
+                result_dict
+                if isinstance(result_dict, dict)
+                else {"avg_engagement": 0, "total_posts": 0, "unique_authors": 0}
+            )
         except Exception as e:
             if isinstance(e, HTTPException):
                 raise e

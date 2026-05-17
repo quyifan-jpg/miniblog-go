@@ -1,6 +1,8 @@
 import os
-from typing import Any, Generator, List, Optional, Tuple
 import tempfile
+from collections.abc import Generator
+from typing import Any
+
 import numpy as np
 import soundfile as sf
 from elevenlabs.client import ElevenLabs
@@ -37,7 +39,7 @@ def create_silence_audio(silence_duration: float, sampling_rate: int) -> np.ndar
     return np.zeros(int(sampling_rate * silence_duration), dtype=np.float32)
 
 
-def combine_audio_segments(audio_segments: List[np.ndarray], silence_duration: float, sampling_rate: int) -> np.ndarray:
+def combine_audio_segments(audio_segments: list[np.ndarray], silence_duration: float, sampling_rate: int) -> np.ndarray:
     if not audio_segments:
         return np.zeros(0, dtype=np.float32)
     if sampling_rate <= 0:
@@ -72,7 +74,7 @@ def text_to_speech_elevenlabs(
     speaker_id: int,
     voice_map={1: "Rachel", 2: "Adam"},
     model_id: str = TEXT_TO_SPEECH_MODEL,
-) -> Optional[Tuple[np.ndarray, int]]:
+) -> tuple[np.ndarray, int] | None:
     if not text.strip():
         return None
     voice_name_or_id = voice_map.get(speaker_id)
@@ -81,6 +83,7 @@ def text_to_speech_elevenlabs(
         return None
     try:
         from pydub import AudioSegment
+
         pydub_available = True
     except ImportError:
         pydub_available = False
@@ -187,8 +190,7 @@ def create_podcast(
             # Circuit breaker is OPEN — ElevenLabs is down.
             # Abort the whole job immediately; no point generating partial audio.
             logger.error(
-                "ElevenLabs circuit breaker open, aborting podcast generation "
-                "(entry {i}/{total}): {e}",
+                "ElevenLabs circuit breaker open, aborting podcast generation (entry {i}/{total}): {e}",
                 i=i + 1,
                 total=len(entries) if hasattr(entries, "__len__") else "?",
                 e=e,

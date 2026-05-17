@@ -1,12 +1,12 @@
-from fastapi import APIRouter, Query, Path, Body, status
-from typing import List, Optional, Dict
-from models.tasks_schemas import Task, TaskCreate, TaskUpdate, TaskStats, TASK_TYPES
+from fastapi import APIRouter, Body, Path, Query, status
+
+from models.tasks_schemas import TASK_TYPES, Task, TaskCreate, TaskStats, TaskUpdate
 from services.task_service import task_service
 
 router = APIRouter()
 
 
-@router.get("/", response_model=List[Task])
+@router.get("/", response_model=list[Task])
 async def get_tasks(
     include_disabled: bool = Query(False, description="Include disabled tasks"),
 ):
@@ -18,7 +18,7 @@ async def get_tasks(
     return await task_service.get_tasks(include_disabled=include_disabled)
 
 
-@router.get("/pending", response_model=List[Task])
+@router.get("/pending", response_model=list[Task])
 async def get_pending_tasks():
     """
     Get tasks that are due to run.
@@ -36,7 +36,7 @@ async def get_task_stats():
 
 @router.get("/executions")
 async def get_task_executions(
-    task_id: Optional[int] = Query(None, description="Filter by task ID"),
+    task_id: int | None = Query(None, description="Filter by task ID"),
     page: int = Query(1, ge=1, description="Page number"),
     per_page: int = Query(10, ge=1, le=100, description="Items per page"),
 ):
@@ -50,7 +50,7 @@ async def get_task_executions(
     return await task_service.get_task_executions(task_id=task_id, page=page, per_page=per_page)
 
 
-@router.get("/types", response_model=Dict[str, Dict[str, str]])
+@router.get("/types", response_model=dict[str, dict[str, str]])
 async def get_task_types():
     """
     Get all available task types.

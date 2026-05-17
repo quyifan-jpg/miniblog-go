@@ -1,6 +1,16 @@
+from typing import Any
+
 from fastapi import APIRouter, Body, Path, status
-from typing import List, Optional, Dict, Any
-from models.source_schemas import Source, SourceWithFeeds, Category, PaginatedSources, SourceCreate, SourceUpdate, SourceFeedCreate
+
+from models.source_schemas import (
+    Category,
+    PaginatedSources,
+    Source,
+    SourceCreate,
+    SourceFeedCreate,
+    SourceUpdate,
+    SourceWithFeeds,
+)
 from services.source_service import source_service
 
 router = APIRouter()
@@ -8,7 +18,11 @@ router = APIRouter()
 
 @router.get("/", response_model=PaginatedSources)
 async def read_sources(
-    page: int = 1, per_page: int = 10, category: Optional[str] = None, search: Optional[str] = None, include_inactive: bool = False
+    page: int = 1,
+    per_page: int = 10,
+    category: str | None = None,
+    search: str | None = None,
+    include_inactive: bool = False,
 ):
     """
     Get sources with pagination and filtering.
@@ -19,16 +33,18 @@ async def read_sources(
     - **search**: Search in name and description
     - **include_inactive**: Include inactive sources
     """
-    return await source_service.get_sources(page=page, per_page=per_page, category=category, search=search, include_inactive=include_inactive)
+    return await source_service.get_sources(
+        page=page, per_page=per_page, category=category, search=search, include_inactive=include_inactive
+    )
 
 
-@router.get("/categories", response_model=List[Category])
+@router.get("/categories", response_model=list[Category])
 async def read_categories():
     """Get all available source categories."""
     return await source_service.get_categories()
 
 
-@router.get("/by-category/{category_name}", response_model=List[Source])
+@router.get("/by-category/{category_name}", response_model=list[Source])
 async def read_sources_by_category(category_name: str):
     """
     Get sources by category name.
@@ -91,7 +107,7 @@ async def update_source(source_data: SourceUpdate, source_id: int = Path(..., gt
     return source_with_feeds
 
 
-@router.delete("/{source_id}", response_model=Dict[str, Any])
+@router.delete("/{source_id}", response_model=dict[str, Any])
 async def delete_source(source_id: int = Path(..., gt=0), permanent: bool = False):
     """
     Delete a source.
@@ -104,7 +120,7 @@ async def delete_source(source_id: int = Path(..., gt=0), permanent: bool = Fals
     return await source_service.delete_source(source_id)
 
 
-@router.post("/{source_id}/feeds", response_model=List[Dict[str, Any]])
+@router.post("/{source_id}/feeds", response_model=list[dict[str, Any]])
 async def add_feed(feed_data: SourceFeedCreate, source_id: int = Path(..., gt=0)):
     """
     Add a new feed to a source.
@@ -115,8 +131,8 @@ async def add_feed(feed_data: SourceFeedCreate, source_id: int = Path(..., gt=0)
     return await source_service.add_feed_to_source(source_id, feed_data)
 
 
-@router.put("/feeds/{feed_id}", response_model=Dict[str, Any])
-async def update_feed(feed_data: Dict[str, Any] = Body(...), feed_id: int = Path(..., gt=0)):
+@router.put("/feeds/{feed_id}", response_model=dict[str, Any])
+async def update_feed(feed_data: dict[str, Any] = Body(...), feed_id: int = Path(..., gt=0)):
     """
     Update an existing feed.
 
@@ -126,7 +142,7 @@ async def update_feed(feed_data: Dict[str, Any] = Body(...), feed_id: int = Path
     return await source_service.update_feed(feed_id, feed_data)
 
 
-@router.delete("/feeds/{feed_id}", response_model=Dict[str, str])
+@router.delete("/feeds/{feed_id}", response_model=dict[str, str])
 async def delete_feed(feed_id: int = Path(..., gt=0)):
     """
     Delete a feed.

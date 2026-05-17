@@ -1,11 +1,12 @@
-from pydantic import BaseModel, ConfigDict, field_validator
-from typing import Optional, List, Dict, Any
 from datetime import datetime
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class ArticleBase(BaseModel):
     title: str
-    url: Optional[str] = None
+    url: str | None = None
     published_date: str
 
     @field_validator("published_date", mode="before")
@@ -14,21 +15,22 @@ class ArticleBase(BaseModel):
         if isinstance(v, datetime):
             return v.isoformat()
         return v
-    summary: Optional[str] = None
-    content: Optional[str] = None
-    categories: Optional[List[str]] = []
-    source_name: Optional[str] = None
+
+    summary: str | None = None
+    content: str | None = None
+    categories: list[str] | None = []
+    source_name: str | None = None
 
 
 class Article(ArticleBase):
     id: int
-    metadata: Optional[Dict[str, Any]] = {}
+    metadata: dict[str, Any] | None = {}
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class PaginatedArticles(BaseModel):
-    items: List[Article]
+    items: list[Article]
     total: int
     page: int
     per_page: int

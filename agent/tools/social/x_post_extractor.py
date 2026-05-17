@@ -1,13 +1,16 @@
-import os
-from bs4 import BeautifulSoup
 import re
-import json
+
+from bs4 import BeautifulSoup
 
 
 def check_ad(soup):
     is_ad = False
     ad_label = soup.find(
-        lambda tag: tag.name and tag.text and tag.text.strip() == "Ad" and "r-bcqeeo" in tag.get("class", []) if hasattr(tag, "get") else False
+        lambda tag: (
+            tag.name and tag.text and tag.text.strip() == "Ad" and "r-bcqeeo" in tag.get("class", [])
+            if hasattr(tag, "get")
+            else False
+        )
     )
     if ad_label:
         is_ad = True
@@ -34,7 +37,9 @@ def x_post_extractor(html_content):
     data["is_ad"] = check_ad(soup)
     user_element = soup.find("div", {"data-testid": "User-Name"})
     if user_element:
-        display_name_element = user_element.find(lambda tag: tag.name and (tag.name == "span" or tag.name == "div") and "Henrik" in tag.text)
+        display_name_element = user_element.find(
+            lambda tag: tag.name and (tag.name == "span" or tag.name == "div") and "Henrik" in tag.text
+        )
         if display_name_element:
             data["user_display_name"] = display_name_element.text.strip()
         username_element = user_element.find(lambda tag: tag.name == "a" and "@" in tag.text)

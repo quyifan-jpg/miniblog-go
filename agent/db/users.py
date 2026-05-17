@@ -17,49 +17,46 @@ Table schema (created on startup by services/db_init.py):
 
 from __future__ import annotations
 
-from typing import Optional
-
 from db.config import get_db_path
 from db.connection import execute_query
 
-_db = lambda: get_db_path("tracking_db")   # users live in the main tracking DB
+_db = lambda: get_db_path("tracking_db")  # users live in the main tracking DB
 
 
 # ── Reads ──────────────────────────────────────────────────────────────────────
 
-def get_user_by_email(email: str) -> Optional[dict]:
+
+def get_user_by_email(email: str) -> dict | None:
     """Return user row dict or None."""
     return execute_query(
         _db(),
-        "SELECT id, email, username, hashed_password, is_active, created_at "
-        "FROM users WHERE email = %s LIMIT 1",
+        "SELECT id, email, username, hashed_password, is_active, created_at FROM users WHERE email = %s LIMIT 1",
         (email,),
         fetch_one=True,
     )
 
 
-def get_user_by_id(user_id: int) -> Optional[dict]:
+def get_user_by_id(user_id: int) -> dict | None:
     """Return user row dict or None (password excluded)."""
     return execute_query(
         _db(),
-        "SELECT id, email, username, is_active, created_at "
-        "FROM users WHERE id = %s LIMIT 1",
+        "SELECT id, email, username, is_active, created_at FROM users WHERE id = %s LIMIT 1",
         (user_id,),
         fetch_one=True,
     )
 
 
-def get_user_by_username(username: str) -> Optional[dict]:
+def get_user_by_username(username: str) -> dict | None:
     return execute_query(
         _db(),
-        "SELECT id, email, username, is_active, created_at "
-        "FROM users WHERE username = %s LIMIT 1",
+        "SELECT id, email, username, is_active, created_at FROM users WHERE username = %s LIMIT 1",
         (username,),
         fetch_one=True,
     )
 
 
 # ── Writes ─────────────────────────────────────────────────────────────────────
+
 
 def create_user(email: str, username: str, hashed_password: str) -> int:
     """

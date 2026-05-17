@@ -1,20 +1,22 @@
 import os
-import sys
-import time
 import signal
 import subprocess
-from datetime import datetime
+import sys
+import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
+
+from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
-from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+
 from db.config import get_tasks_db_path
 from db.connection import db_connection
 from db.tasks import (
     get_pending_tasks,
-    update_task_last_run,
     update_task_execution,
+    update_task_last_run,
 )
 from services.mysql_init import init_mysql_schema
 

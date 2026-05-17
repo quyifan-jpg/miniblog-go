@@ -1,11 +1,11 @@
+import uuid
+from datetime import datetime
+from textwrap import dedent
+
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
-from pydantic import BaseModel, Field
-from typing import List, Optional
 from dotenv import load_dotenv
-from textwrap import dedent
-from datetime import datetime
-import uuid
+from pydantic import BaseModel, Field
 
 load_dotenv()
 
@@ -20,16 +20,18 @@ class Dialog(BaseModel):
 
 class Section(BaseModel):
     type: str = Field(..., description="The section type (intro, headlines, article, outro)")
-    title: Optional[str] = Field(None, description="Optional title for the section (required for article type)")
-    dialog: List[Dialog] = Field(..., description="List of dialog exchanges between speakers")
+    title: str | None = Field(None, description="Optional title for the section (required for article type)")
+    dialog: list[Dialog] = Field(..., description="List of dialog exchanges between speakers")
 
 
 class PodcastScript(BaseModel):
     title: str = Field(..., description="The podcast episode title with date")
-    sections: List[Section] = Field(..., description="List of podcast sections (intro, headlines, articles, outro)")
+    sections: list[Section] = Field(..., description="List of podcast sections (intro, headlines, articles, outro)")
 
 
-PODCAST_AGENT_DESCRIPTION = "You are a helpful assistant that can generate engaging podcast scripts for the given sources."
+PODCAST_AGENT_DESCRIPTION = (
+    "You are a helpful assistant that can generate engaging podcast scripts for the given sources."
+)
 PODCAST_AGENT_INSTRUCTIONS = dedent("""
     You are a helpful assistant that can generate engaging podcast scripts for the given source content and query.
     For given content, create an engaging podcast script that should be at least 15 minutes worth of content and your allowed enhance the script beyond given sources if you know something additional info will be interesting to the discussion or not enough conents available.
@@ -62,8 +64,8 @@ PODCAST_AGENT_INSTRUCTIONS = dedent("""
 
 
 def format_search_results_for_podcast(
-    search_results: List[dict],
-) -> tuple[str, List[str]]:
+    search_results: list[dict],
+) -> tuple[str, list[str]]:
     created_at = datetime.now().strftime("%B %d, %Y at %I:%M %p")
     structured_content = []
     structured_content.append(f"PODCAST CREATION: {created_at}\n")
@@ -75,9 +77,9 @@ def format_search_results_for_podcast(
                 structured_content.append(
                     f"""
                                         SOURCE {idx + 1}:
-                                        Title: {search_result['title']}
-                                        URL: {search_result['url']}
-                                        Content: {search_result.get('full_text') or search_result.get('description', '')}
+                                        Title: {search_result["title"]}
+                                        URL: {search_result["url"]}
+                                        Content: {search_result.get("full_text") or search_result.get("description", "")}
                                         ---END OF SOURCE {idx + 1}---
                                         """.strip()
                 )
@@ -89,7 +91,7 @@ def format_search_results_for_podcast(
 
 def script_agent_run(
     query: str,
-    search_results: List[dict],
+    search_results: list[dict],
     language_name: str,
 ) -> str:
     try:

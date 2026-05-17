@@ -1,17 +1,18 @@
-import os
 import json
+import os
 from datetime import datetime
-from typing import List, Dict, Any, Optional
-from tools.pipeline.search_agent import search_agent_run
+from typing import Any
+
+from db.agent_config_v2 import AVAILABLE_LANGS
+from db.config import get_podcasts_db_path, get_tasks_db_path, get_tracking_db_path
+from db.podcast_configs import get_all_podcast_configs, get_podcast_config
+from tools.pipeline.image_generate_agent import image_generation_agent_run
 from tools.pipeline.scrape_agent import scrape_agent_run
 from tools.pipeline.script_agent import script_agent_run
-from tools.pipeline.image_generate_agent import image_generation_agent_run
-from db.config import get_tracking_db_path, get_podcasts_db_path, get_tasks_db_path
-from db.podcast_configs import get_podcast_config, get_all_podcast_configs
-from db.agent_config_v2 import AVAILABLE_LANGS
-from utils.tts_engine_selector import generate_podcast_audio
-from utils.load_api_keys import load_api_key
+from tools.pipeline.search_agent import search_agent_run
 from tools.session_state_manager import _save_podcast_to_database_sync
+from utils.load_api_keys import load_api_key
+from utils.tts_engine_selector import generate_podcast_audio
 
 PODCAST_ASSETS_DIR = "podcasts"
 
@@ -21,7 +22,7 @@ def get_language_name(language_code: str) -> str:
     return language_map.get(language_code, "English")
 
 
-def convert_script_to_audio_format(podcast_data: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
+def convert_script_to_audio_format(podcast_data: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
     speaker_map = {"ALEX": 1, "MORGAN": 2}
     dict_entries = []
     for section in podcast_data.get("sections", []):
@@ -36,15 +37,15 @@ def convert_script_to_audio_format(podcast_data: Dict[str, Any]) -> Dict[str, Li
 def generate_podcast_from_prompt_v2(
     prompt: str,
     openai_api_key: str,
-    tracking_db_path: Optional[str] = None,
-    podcasts_db_path: Optional[str] = None,
+    tracking_db_path: str | None = None,
+    podcasts_db_path: str | None = None,
     output_dir: str = PODCAST_ASSETS_DIR,
     tts_engine: str = "kokoro",
     language_code: str = "en",
-    podcast_script_prompt: Optional[str] = None,
-    image_prompt: Optional[str] = None,
+    podcast_script_prompt: str | None = None,
+    image_prompt: str | None = None,
     debug: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     if tracking_db_path is None:
         tracking_db_path = get_tracking_db_path()
     if podcasts_db_path is None:
@@ -193,12 +194,12 @@ def generate_podcast_from_prompt_v2(
 def generate_podcast_from_config_v2(
     config_id: int,
     openai_api_key: str,
-    tracking_db_path: Optional[str] = None,
-    podcasts_db_path: Optional[str] = None,
-    tasks_db_path: Optional[str] = None,
+    tracking_db_path: str | None = None,
+    podcasts_db_path: str | None = None,
+    tasks_db_path: str | None = None,
     output_dir: str = PODCAST_ASSETS_DIR,
     debug: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     if tracking_db_path is None:
         tracking_db_path = get_tracking_db_path()
     if podcasts_db_path is None:
@@ -238,12 +239,12 @@ def generate_podcast_from_config_v2(
 
 def process_all_active_configs_v2(
     openai_api_key: str,
-    tracking_db_path: Optional[str] = None,
-    podcasts_db_path: Optional[str] = None,
-    tasks_db_path: Optional[str] = None,
+    tracking_db_path: str | None = None,
+    podcasts_db_path: str | None = None,
+    tasks_db_path: str | None = None,
     output_dir: str = PODCAST_ASSETS_DIR,
     debug: bool = False,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     if tracking_db_path is None:
         tracking_db_path = get_tracking_db_path()
     if podcasts_db_path is None:

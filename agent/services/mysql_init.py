@@ -1,6 +1,6 @@
 import os
-from db.connection import db_connection
 
+from db.connection import db_connection
 
 MYSQL_TABLE_DDLS = [
     """

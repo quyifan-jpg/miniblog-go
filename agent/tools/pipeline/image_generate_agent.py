@@ -1,15 +1,16 @@
+import json
+import os
+import uuid
+from textwrap import dedent
+from typing import Any
+
+import requests
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
 from agno.tools.dalle import DalleTools
-from textwrap import dedent
-import json
 from dotenv import load_dotenv
-import uuid
-from db.agent_config_v2 import PODCAST_IMG_DIR
-import os
-import requests
-from typing import Any
 
+from db.agent_config_v2 import PODCAST_IMG_DIR
 
 load_dotenv()
 
@@ -75,7 +76,10 @@ def image_generation_agent_run(query: str, generated_script: Any) -> str:
                 image_url = image_response.url
                 image_urls.append(image_url)
         local_image_filenames = download_images(image_urls)
-        return {"banner_images": local_image_filenames, "banner_url": local_image_filenames[0] if local_image_filenames else None}
+        return {
+            "banner_images": local_image_filenames,
+            "banner_url": local_image_filenames[0] if local_image_filenames else None,
+        }
     except Exception as e:
         print(f"Error in Image Generation Agent: {e}")
         return {}

@@ -15,14 +15,13 @@ token budgeting across memory layers.
 
 from __future__ import annotations
 
-import json
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
-from memory.config import memory_settings
 from memory import store
-from memory.summarizer import summarize_conversation, extract_preferences
+from memory.config import memory_settings
+from memory.summarizer import extract_preferences, summarize_conversation
 
 
 class MemoryManager:
@@ -47,10 +46,10 @@ class MemoryManager:
     def prepare_context(
         session_id: str,
         user_id: str = "",
-        instructions: List[str] = None,
-        current_messages: Optional[List[Dict[str, Any]]] = None,
+        instructions: list[str] = None,
+        current_messages: list[dict[str, Any]] | None = None,
         total_turns: int = 0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Prepare the augmented context for Agent creation.
 
@@ -92,9 +91,7 @@ class MemoryManager:
 
         # ── Layer 2: Summary Memory ─────────────────────────────────
         if memory_settings.summary_enabled:
-            summary_text = _get_or_create_summary(
-                session_id, messages, total_turns
-            )
+            summary_text = _get_or_create_summary(session_id, messages, total_turns)
             if summary_text:
                 result["summary"] = summary_text
                 result["instructions"] = _inject_section(
@@ -143,7 +140,7 @@ class MemoryManager:
     def post_conversation_update(
         session_id: str,
         user_id: str = "",
-        messages: Optional[List[Dict[str, Any]]] = None,
+        messages: list[dict[str, Any]] | None = None,
     ) -> None:
         """
         Called after a conversation turn to update memory state.
@@ -163,10 +160,7 @@ class MemoryManager:
         total_turns = _count_turns(messages)
 
         # Update summary if conversation is long enough
-        if (
-            memory_settings.summary_enabled
-            and total_turns > memory_settings.summary_trigger_threshold
-        ):
+        if memory_settings.summary_enabled and total_turns > memory_settings.summary_trigger_threshold:
             try:
                 _update_summary(session_id, messages, total_turns)
             except Exception as e:
@@ -189,14 +183,15 @@ class MemoryManager:
 # Private helpers
 # ═══════════════════════════════════════════════════════════════════════
 
-def _count_turns(messages: List[Dict[str, Any]]) -> int:
+
+def _count_turns(messages: list[dict[str, Any]]) -> int:
     """Count user message turns in the conversation."""
     return sum(1 for m in messages if m.get("role") == "user")
 
 
 def _get_or_create_summary(
     session_id: str,
-    messages: List[Dict[str, Any]],
+    messages: list[dict[str, Any]],
     total_turns: int,
 ) -> str:
     """
@@ -219,7 +214,7 @@ def _get_or_create_summary(
 
 def _update_summary(
     session_id: str,
-    messages: List[Dict[str, Any]],
+    messages: list[dict[str, Any]],
     total_turns: int,
 ) -> str:
     """Create or update the conversation summary."""
@@ -268,10 +263,10 @@ def _update_summary(
 
 
 def _inject_section(
-    instructions: List[str],
+    instructions: list[str],
     section_title: str,
     content: str,
-) -> List[str]:
+) -> list[str]:
     """
     Inject a new section into the instructions list.
 
@@ -289,7 +284,7 @@ def _inject_section(
     return instructions + [section]
 
 
-def _format_preferences(prefs: Dict[str, Any]) -> str:
+def _format_preferences(prefs: dict[str, Any]) -> str:
     """Format user preferences dict into readable text for the agent."""
     lines = []
 
@@ -312,7 +307,7 @@ def _format_preferences(prefs: Dict[str, Any]) -> str:
     return "\n".join(lines) if lines else "No specific preferences recorded."
 
 
-def _format_history(podcasts: List[Dict[str, Any]]) -> str:
+def _format_history(podcasts: list[dict[str, Any]]) -> str:
     """Format recent podcast history into readable text."""
     if not podcasts:
         return "No recent podcasts."
@@ -323,6 +318,6 @@ def _format_history(podcasts: List[Dict[str, Any]]) -> str:
         date = p.get("date", "")
         lang = p.get("language", "en")
         sources = p.get("source_count", 0)
-        lines.append(f"- [{date}] \"{title}\" ({lang}, {sources} sources)")
+        lines.append(f'- [{date}] "{title}" ({lang}, {sources} sources)')
 
     return "\n".join(lines)

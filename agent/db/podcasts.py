@@ -1,14 +1,15 @@
 import json
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Any
+
 from .connection import execute_query
 
 
 def store_podcast(
     podcasts_db_path: str,
-    podcast_data: Dict[str, Any],
-    audio_path: Optional[str],
-    banner_path: Optional[str],
+    podcast_data: dict[str, Any],
+    audio_path: str | None,
+    banner_path: str | None,
     tts_engine: str = "kokoro",
     language_code: str = "en",
 ) -> int:
@@ -37,7 +38,7 @@ def store_podcast(
     return execute_query(podcasts_db_path, query, params)
 
 
-def get_podcast(podcasts_db_path: str, podcast_id: int) -> Optional[Dict[str, Any]]:
+def get_podcast(podcasts_db_path: str, podcast_id: int) -> dict[str, Any] | None:
     query = """
     SELECT id, title, date, content_json, audio_generated, audio_path, banner_img_path, 
            tts_engine, language_code, sources_json, created_at
@@ -99,7 +100,11 @@ def update_podcast_banner(podcasts_db_path: str, podcast_id: int, banner_path: s
 
 
 def update_podcast_metadata(
-    podcasts_db_path: str, podcast_id: int, tts_engine: Optional[str] = None, language_code: Optional[str] = None, sources_json: Optional[str] = None
+    podcasts_db_path: str,
+    podcast_id: int,
+    tts_engine: str | None = None,
+    language_code: str | None = None,
+    sources_json: str | None = None,
 ) -> bool:
     update_parts = []
     params = []

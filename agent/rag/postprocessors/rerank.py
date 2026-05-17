@@ -18,8 +18,6 @@ Supported providers:
 
 from __future__ import annotations
 
-from typing import Optional
-
 from loguru import logger
 
 from rag.models import ChannelResult, RetrievedChunk, SearchContext
@@ -39,10 +37,10 @@ class RerankProcessor(PostProcessor):
     def __init__(
         self,
         *,
-        provider: str = "cohere",       # "cohere" | "jina" | "disabled"
-        api_key: Optional[str] = None,
+        provider: str = "cohere",  # "cohere" | "jina" | "disabled"
+        api_key: str | None = None,
         model: str = "rerank-v3.5",
-        top_n: Optional[int] = None,    # None = use context.top_k
+        top_n: int | None = None,  # None = use context.top_k
     ):
         self._provider = provider
         self._api_key = api_key
@@ -102,10 +100,7 @@ class RerankProcessor(PostProcessor):
         client = cohere.ClientV2(api_key=self._api_key)
         # Pass title alongside content so the cross-encoder sees the article
         # heading — titles often contain the clearest topical signal.
-        documents = [
-            {"text": c.content, "title": c.title} if c.title else c.content
-            for c in chunks
-        ]
+        documents = [{"text": c.content, "title": c.title} if c.title else c.content for c in chunks]
 
         response = client.rerank(
             query=query,
@@ -138,10 +133,7 @@ class RerankProcessor(PostProcessor):
         import requests
 
         # Pass title alongside content — Jina supports {"text", "title"} dicts.
-        documents = [
-            {"text": c.content, "title": c.title} if c.title else c.content
-            for c in chunks
-        ]
+        documents = [{"text": c.content, "title": c.title} if c.title else c.content for c in chunks]
 
         response = requests.post(
             "https://api.jina.ai/v1/rerank",
@@ -178,8 +170,7 @@ class RerankProcessor(PostProcessor):
         reranked.sort(key=lambda c: c.score, reverse=True)
 
         logger.info(
-            "Jina rerank: {input} → {output} chunks  "
-            "top_score={top:.3f}  bottom_score={bot:.3f}",
+            "Jina rerank: {input} → {output} chunks  top_score={top:.3f}  bottom_score={bot:.3f}",
             input=len(chunks),
             output=len(reranked),
             top=reranked[0].score if reranked else 0,

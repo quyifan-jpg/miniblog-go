@@ -1,12 +1,12 @@
-from typing import List, Union
-from agno.agent import Agent
-from db.config import get_tracking_db_path
 import json
 
+from agno.agent import Agent
+
+from db.config import get_tracking_db_path
 from db.connection import db_connection
 
 
-def search_articles(agent: Agent, terms: Union[str, List[str]]) -> str:
+def search_articles(agent: Agent, terms: str | list[str]) -> str:
     """
     Search for articles related to a podcast topic using direct SQL queries.
     The agent can pass either a string topic or a list of search terms.

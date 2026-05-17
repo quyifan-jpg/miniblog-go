@@ -1,16 +1,16 @@
+import asyncio
+import json
 import os
 import re
-import asyncio
-import aiohttp
-import json
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
+
+import aiohttp
+from dotenv import load_dotenv
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
-from dotenv import load_dotenv
-from typing import Dict, List
-from datetime import datetime
-from db.config import get_slack_sessions_db_path
 
+from db.config import get_slack_sessions_db_path
 from db.connection import db_connection
 
 load_dotenv()
@@ -20,7 +20,7 @@ app = App(token=os.environ["SLACK_BOT_TOKEN"])
 # you can use ngrok to port forward local url to https and replace this local url with ngrok url
 API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:7000")
 executor = ThreadPoolExecutor(max_workers=10)
-active_sessions: Dict[str, Dict] = {}
+active_sessions: dict[str, dict] = {}
 DB_PATH = get_slack_sessions_db_path()
 
 
@@ -394,7 +394,9 @@ async def send_script_confirmation_blocks(thread_key: str, state_data: dict, res
     title = script.get("title", "Podcast Script") if isinstance(script, dict) else "Podcast Script"
     full_script_text = format_script_for_slack_snippet(script)
     if len(full_script_text) > 2500:
-        full_script_text = full_script_text[:2400] + "\n\n... (script continues)\n\nFull script will be available after approval."
+        full_script_text = (
+            full_script_text[:2400] + "\n\n... (script continues)\n\nFull script will be available after approval."
+        )
     section_count = len(script.get("sections", [])) if isinstance(script, dict) else 0
     dialog_count = 0
     if isinstance(script, dict) and script.get("sections"):
@@ -510,7 +512,7 @@ async def send_audio_confirmation_blocks(thread_key: str, state_data: dict, resp
         }
     )
     blocks.append({"type": "actions", "elements": action_elements})
-    await send_slack_blocks(thread_key, blocks, f"🎵 Audio Review")
+    await send_slack_blocks(thread_key, blocks, "🎵 Audio Review")
 
 
 async def send_final_presentation_blocks(thread_key: str, state_data: dict, response_text: str):
@@ -638,7 +640,7 @@ def clean_text(text, bot_id):
     return text
 
 
-def format_script_for_slack(script_data) -> List[str]:
+def format_script_for_slack(script_data) -> list[str]:
     if isinstance(script_data, dict):
         chunks = []
         current_chunk = ""
@@ -740,8 +742,12 @@ def handle_confirm_sources(ack, body, client):
             sources = state_data.get("search_results", [])
             if selected_sources:
                 source_indices = [str(i + 1) for i in selected_sources]
-                selected_source_titles = [sources[i].get("title", f"Source {i + 1}") for i in selected_sources if i < len(sources)]
-                message = f"I've selected sources {', '.join(source_indices)} and I want the podcast in {language_name}."
+                selected_source_titles = [
+                    sources[i].get("title", f"Source {i + 1}") for i in selected_sources if i < len(sources)
+                ]
+                message = (
+                    f"I've selected sources {', '.join(source_indices)} and I want the podcast in {language_name}."
+                )
             else:
                 source_indices = [str(i + 1) for i in range(len(sources))]
                 selected_source_titles = [source.get("title", f"Source {i + 1}") for i, source in enumerate(sources)]
@@ -1175,7 +1181,9 @@ async def handle_user_message(
                 say(text=progress_message, thread_ts=thread_key)
             else:
                 say(text=progress_message)
-            print(f"Session {session_id} already processing ({current_stage}) - prevented API call for: {user_input[:50]}...")
+            print(
+                f"Session {session_id} already processing ({current_stage}) - prevented API call for: {user_input[:50]}..."
+            )
             return
         print(f"Processing message for session {session_id}: {user_input[:50]}...")
         chat_response = await api_client.chat(session_id, user_input)

@@ -46,14 +46,14 @@ def process_in_batches(batch_size: int = 20, total_batches: int = 3) -> dict:
 def print_stats(stats: dict) -> None:
     logger.info(
         "Embedding statistics — total={t} success={s} failed={f}",
-        t=stats["total"], s=stats["success"], f=stats["failed"],
+        t=stats["total"],
+        s=stats["success"],
+        f=stats["failed"],
     )
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Drive vector index sync via the state machine"
-    )
+    parser = argparse.ArgumentParser(description="Drive vector index sync via the state machine")
     parser.add_argument("--batch_size", type=int, default=20)
     parser.add_argument("--total_batches", type=int, default=3)
     args = parser.parse_args()

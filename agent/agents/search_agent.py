@@ -52,8 +52,8 @@ def search_agent_run(agent: Agent, query: str) -> str:
     print(f"\n[search_agent_run] query='{query}'")
     session_id = agent.session_id
 
-    from services.internal_session_service import SessionService
     from graph.search_scrape_graph import run_search_pipeline
+    from services.internal_session_service import SessionService
 
     session = SessionService.get_session(session_id)
     current_state = session["state"]

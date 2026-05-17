@@ -1,10 +1,12 @@
-from typing import List, Optional, Dict, Any
-from fastapi import HTTPException
 import json
 import time
+from typing import Any
+
+from fastapi import HTTPException
 from loguru import logger
-from services.db_service import tracking_db, sources_db
+
 from models.article_schemas import Article, PaginatedArticles
+from services.db_service import sources_db, tracking_db
 
 # ── Prometheus metrics for the article module ─────────────────────────────────
 # 这是实习生该掌握的「业务自定义指标」做法：在自己的 service 里声明指标，
@@ -15,12 +17,12 @@ try:
     article_requests_total = Counter(
         "miniblog_article_requests_total",
         "Total article API requests",
-        ["endpoint", "status"],     # status: success / not_found / error
+        ["endpoint", "status"],  # status: success / not_found / error
     )
     article_query_duration = Histogram(
         "miniblog_article_query_duration_seconds",
         "Article query duration broken down by stage",
-        ["endpoint", "stage"],      # stage: count / list / categories / total
+        ["endpoint", "stage"],  # stage: count / list / categories / total
         buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0),
     )
     _metrics_enabled = True
@@ -43,11 +45,11 @@ class ArticleService:
         self,
         page: int = 1,
         per_page: int = 10,
-        source: Optional[str] = None,
-        date_from: Optional[str] = None,
-        date_to: Optional[str] = None,
-        search: Optional[str] = None,
-        category: Optional[str] = None,
+        source: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        search: str | None = None,
+        category: str | None = None,
     ) -> PaginatedArticles:
         """Get articles with pagination and filtering."""
         # 总耗时计时起点。注意用 perf_counter 而不是 time.time —— 单调时钟，不受系统时间调整影响。
@@ -62,7 +64,7 @@ class ArticleService:
             category=category,
             date_from=date_from,
             date_to=date_to,
-            has_search=bool(search),   # search 可能是用户输入，只记是否有，不记内容,避免日志放敏感信息
+            has_search=bool(search),  # search 可能是用户输入，只记是否有，不记内容,避免日志放敏感信息
         )
         try:
             offset = (page - 1) * per_page
@@ -74,10 +76,14 @@ class ArticleService:
             query_params = []
             if source:
                 source_id_query = "SELECT id FROM sources WHERE name = ?"
-                source_id_result = await sources_db.execute_query(source_id_query, (source,), fetch=True, fetch_one=True)
+                source_id_result = await sources_db.execute_query(
+                    source_id_query, (source,), fetch=True, fetch_one=True
+                )
                 if source_id_result and source_id_result.get("id"):
                     feed_ids_query = "SELECT id FROM source_feeds WHERE source_id = ?"
-                    feed_ids_result = await sources_db.execute_query(feed_ids_query, (source_id_result["id"],), fetch=True)
+                    feed_ids_result = await sources_db.execute_query(
+                        feed_ids_query, (source_id_result["id"],), fetch=True
+                    )
                     if feed_ids_result:
                         feed_ids = [item["id"] for item in feed_ids_result]
                         placeholders = ",".join(["?" for _ in feed_ids])
@@ -108,7 +114,9 @@ class ArticleService:
             )
             # 给 count 查询单独计时 —— 经常 count 比 list 还慢，分开看才能定位瓶颈
             t_count = time.perf_counter()
-            total_articles = await tracking_db.execute_query(count_query, tuple(query_params), fetch=True, fetch_one=True)
+            total_articles = await tracking_db.execute_query(
+                count_query, tuple(query_params), fetch=True, fetch_one=True
+            )
             count_dur = time.perf_counter() - t_count
             if _metrics_enabled:
                 article_query_duration.labels(endpoint="get_articles", stage="count").observe(count_dur)
@@ -208,7 +216,9 @@ class ArticleService:
                 JOIN sources s ON sf.source_id = s.id
                 WHERE sf.id = ?
                 """
-                source_result = await sources_db.execute_query(source_query, (article["feed_id"],), fetch=True, fetch_one=True)
+                source_result = await sources_db.execute_query(
+                    source_query, (article["feed_id"],), fetch=True, fetch_one=True
+                )
                 if source_result:
                     article["source_name"] = source_result["source_name"]
                 else:
@@ -228,7 +238,7 @@ class ArticleService:
                 raise e
             raise HTTPException(status_code=500, detail=f"Error fetching article: {str(e)}")
 
-    async def get_article_categories(self, article_id: int) -> List[str]:
+    async def get_article_categories(self, article_id: int) -> list[str]:
         """Get categories for a specific article."""
         query = """
         SELECT category_name
@@ -238,7 +248,7 @@ class ArticleService:
         categories = await tracking_db.execute_query(query, (article_id,), fetch=True)
         return [category.get("category_name", "") for category in categories]
 
-    async def get_sources(self) -> List[str]:
+    async def get_sources(self) -> list[str]:
         """Get all available active sources."""
         query = """
         SELECT DISTINCT name FROM sources 
@@ -248,7 +258,7 @@ class ArticleService:
         result = await sources_db.execute_query(query, fetch=True)
         return [row.get("name", "") for row in result if row.get("name")]
 
-    async def get_categories(self) -> List[Dict[str, Any]]:
+    async def get_categories(self) -> list[dict[str, Any]]:
         """Get all categories with article counts."""
         query = """
         SELECT category_name, COUNT(DISTINCT article_id) as article_count

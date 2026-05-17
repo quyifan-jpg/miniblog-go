@@ -1,17 +1,19 @@
-import os
-import json
-import uuid
 import asyncio
+import glob
+import json
+import os
+import uuid
+
+from dotenv import load_dotenv
 from fastapi import status
 from fastapi.responses import JSONResponse
-import glob
 from redis.asyncio import ConnectionPool, Redis
+
+from db.agent_config_v2 import AVAILABLE_LANGS, PODCAST_AUIDO_DIR, PODCAST_DIR, PODCAST_IMG_DIR, PODCAST_RECORDINGS_DIR
 from db.config import get_agent_session_db_path
-from db.agent_config_v2 import PODCAST_DIR, PODCAST_AUIDO_DIR, PODCAST_IMG_DIR, PODCAST_RECORDINGS_DIR, AVAILABLE_LANGS
-from services.celery_tasks import agent_chat
-from dotenv import load_dotenv
-from services.internal_session_service import SessionService
 from db.connection import db_connection
+from services.celery_tasks import agent_chat
+from services.internal_session_service import SessionService
 from services.redis_cache import async_redis_cache, build_cache_key
 
 load_dotenv()
@@ -29,7 +31,7 @@ class PodcastAgentService:
         self.redis_db = int(os.environ.get("REDIS_DB", 0))
         self.redis_username = os.environ.get("REDIS_USERNAME", None)
         self.redis_password = os.environ.get("REDIS_PASSWORD", None)
-        
+
         # Build Redis connection URL with authentication if provided
         if self.redis_username and self.redis_password:
             redis_url = f"redis://{self.redis_username}:{self.redis_password}@{self.redis_host}:{self.redis_port}/{self.redis_db + 1}"
@@ -37,7 +39,7 @@ class PodcastAgentService:
             redis_url = f"redis://:{self.redis_password}@{self.redis_host}:{self.redis_port}/{self.redis_db + 1}"
         else:
             redis_url = f"redis://{self.redis_host}:{self.redis_port}/{self.redis_db + 1}"
-        
+
         self.redis_pool = ConnectionPool.from_url(redis_url, max_connections=10)
         self.redis = Redis(connection_pool=self.redis_pool)
         self.using_mysql = os.environ.get("DATABASE_URL", "").startswith(("mysql://", "mysql+pymysql://"))
@@ -97,7 +99,9 @@ class PodcastAgentService:
                 if self.using_mysql:
                     return {"session_id": session_id}
                 db_path = get_agent_session_db_path()
-                row = await self._fetchone(db_path, "SELECT 1 FROM podcast_sessions WHERE session_id = ?", (session_id,))
+                row = await self._fetchone(
+                    db_path, "SELECT 1 FROM podcast_sessions WHERE session_id = ?", (session_id,)
+                )
                 exists = row is not None
                 if exists:
                     return {"session_id": session_id}
@@ -149,9 +153,11 @@ class PodcastAgentService:
             webm_files = glob.glob(os.path.join(recordings_dir, "*.webm"))
             if webm_files:
                 browser_recording_path = webm_files[0]
-                if (os.path.exists(browser_recording_path) and 
-                    os.path.getsize(browser_recording_path) > 8192 and 
-                    os.access(browser_recording_path, os.R_OK)):
+                if (
+                    os.path.exists(browser_recording_path)
+                    and os.path.getsize(browser_recording_path) > 8192
+                    and os.access(browser_recording_path, os.R_OK)
+                ):
                     return browser_recording_path
             return None
         except Exception as _:
@@ -227,7 +233,9 @@ class PodcastAgentService:
         try:
             if not self.using_mysql:
                 db_path = get_agent_session_db_path()
-                row = await self._fetchone(db_path, "SELECT session_data FROM podcast_sessions WHERE session_id = ?", (session_id,))
+                row = await self._fetchone(
+                    db_path, "SELECT session_data FROM podcast_sessions WHERE session_id = ?", (session_id,)
+                )
             else:
                 row = {"session_data": "{}"}
 
@@ -299,7 +307,9 @@ class PodcastAgentService:
                         title = session_state.get("title", "Untitled Podcast")
                         stage = session_state.get("stage", "welcome")
                         updated_at = row["updated_at"]
-                        sessions.append({"session_id": row["session_id"], "topic": title, "stage": stage, "updated_at": updated_at})
+                        sessions.append(
+                            {"session_id": row["session_id"], "topic": title, "stage": stage, "updated_at": updated_at}
+                        )
                     except Exception as e:
                         print(f"Error parsing session data: {e}")
             return {
@@ -313,16 +323,27 @@ class PodcastAgentService:
             }
         except Exception as e:
             print(f"Error listing sessions: {e}")
-            return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"error": f"Failed to list sessions: {str(e)}"})
+            return JSONResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content={"error": f"Failed to list sessions: {str(e)}"},
+            )
 
     async def delete_session(self, session_id: str):
         try:
             await async_redis_cache.delete(self._status_cache_key(session_id))
-            row = {"session_data": "{}"} if self.using_mysql else await self._fetchone(
-                get_agent_session_db_path(), "SELECT session_data FROM podcast_sessions WHERE session_id = ?", (session_id,)
+            row = (
+                {"session_data": "{}"}
+                if self.using_mysql
+                else await self._fetchone(
+                    get_agent_session_db_path(),
+                    "SELECT session_data FROM podcast_sessions WHERE session_id = ?",
+                    (session_id,),
+                )
             )
             if not row and not self.using_mysql:
-                return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"error": f"Session with ID {session_id} not found"})
+                return JSONResponse(
+                    status_code=status.HTTP_404_NOT_FOUND, content={"error": f"Session with ID {session_id} not found"}
+                )
             if self.using_mysql:
                 SessionService.delete_session(session_id)
                 return {"success": True, "message": f"Session {session_id} deleted from MySQL session_state"}
@@ -368,13 +389,22 @@ class PodcastAgentService:
                 if is_completed:
                     return {"success": True, "message": f"Session {session_id} deleted, but assets preserved"}
                 else:
-                    return {"success": True, "message": f"Session {session_id} and its associated data deleted successfully"}
+                    return {
+                        "success": True,
+                        "message": f"Session {session_id} and its associated data deleted successfully",
+                    }
             except Exception as e:
                 print(f"Error parsing session data for deletion: {e}")
-                return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"error": f"Error deleting session: {str(e)}"})
+                return JSONResponse(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    content={"error": f"Error deleting session: {str(e)}"},
+                )
         except Exception as e:
             print(f"Error deleting session: {e}")
-            return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"error": f"Failed to delete session: {str(e)}"})
+            return JSONResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content={"error": f"Failed to delete session: {str(e)}"},
+            )
 
     async def _get_chat_messages(self, row, session_id):
         formatted_messages = []
@@ -412,9 +442,17 @@ class PodcastAgentService:
                 formatted_messages = []
             else:
                 db_path = get_agent_session_db_path()
-                row = await self._fetchone(db_path, "SELECT memory, session_data FROM podcast_sessions WHERE session_id = ?", (session_id,))
+                row = await self._fetchone(
+                    db_path, "SELECT memory, session_data FROM podcast_sessions WHERE session_id = ?", (session_id,)
+                )
                 if not row:
-                    return {"session_id": session_id, "messages": [], "state": "{}", "is_processing": False, "process_type": None}
+                    return {
+                        "session_id": session_id,
+                        "messages": [],
+                        "state": "{}",
+                        "is_processing": False,
+                        "process_type": None,
+                    }
                 formatted_messages, session_state = await self._get_chat_messages(row, session_id)
 
             task_id = await self.get_active_task(session_id)
@@ -432,7 +470,10 @@ class PodcastAgentService:
                 "browser_recording_path": browser_recording_path,
             }
         except Exception as e:
-            return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"error": f"Error retrieving session history: {str(e)}"})
+            return JSONResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content={"error": f"Error retrieving session history: {str(e)}"},
+            )
 
     async def get_supported_languages(self):
         return {"languages": AVAILABLE_LANGS}

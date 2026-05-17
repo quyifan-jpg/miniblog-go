@@ -1,22 +1,22 @@
-from typing import List, Dict, Any, Optional
 from datetime import datetime
+from typing import Any
 
 from db.connection import db_connection
 
 
-def get_podcast_config(db_path: str, config_id: int) -> Optional[Dict[str, Any]]:
+def get_podcast_config(db_path: str, config_id: int) -> dict[str, Any] | None:
     try:
         with db_connection(db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(
-            """
+                """
             SELECT id, name, description, prompt, time_range_hours, limit_articles, 
                    is_active, tts_engine, language_code, podcast_script_prompt, 
                    image_prompt, created_at, updated_at
             FROM podcast_configs
             WHERE id = ?
             """,
-            (config_id,),
+                (config_id,),
             )
             row = cursor.fetchone()
             if not row:
@@ -29,7 +29,7 @@ def get_podcast_config(db_path: str, config_id: int) -> Optional[Dict[str, Any]]
         return None
 
 
-def get_all_podcast_configs(db_path: str, active_only: bool = False) -> List[Dict[str, Any]]:
+def get_all_podcast_configs(db_path: str, active_only: bool = False) -> list[dict[str, Any]]:
     try:
         with db_connection(db_path) as conn:
             cursor = conn.cursor()
@@ -67,41 +67,41 @@ def create_podcast_config(
     db_path: str,
     name: str,
     prompt: str,
-    description: Optional[str] = None,
+    description: str | None = None,
     time_range_hours: int = 24,
     limit_articles: int = 20,
     is_active: bool = True,
     tts_engine: str = "kokoro",
     language_code: str = "en",
-    podcast_script_prompt: Optional[str] = None,
-    image_prompt: Optional[str] = None,
-) -> Optional[int]:
+    podcast_script_prompt: str | None = None,
+    image_prompt: str | None = None,
+) -> int | None:
     try:
         with db_connection(db_path) as conn:
             cursor = conn.cursor()
             now = datetime.now().isoformat()
             cursor.execute(
-            """
+                """
             INSERT INTO podcast_configs
             (name, description, prompt, time_range_hours, limit_articles, 
              is_active, tts_engine, language_code, podcast_script_prompt, 
              image_prompt, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (
-                name,
-                description,
-                prompt,
-                time_range_hours,
-                limit_articles,
-                1 if is_active else 0,
-                tts_engine,
-                language_code,
-                podcast_script_prompt,
-                image_prompt,
-                now,
-                now,
-            ),
+                (
+                    name,
+                    description,
+                    prompt,
+                    time_range_hours,
+                    limit_articles,
+                    1 if is_active else 0,
+                    tts_engine,
+                    language_code,
+                    podcast_script_prompt,
+                    image_prompt,
+                    now,
+                    now,
+                ),
             )
             conn.commit()
             return cursor.lastrowid
@@ -110,7 +110,7 @@ def create_podcast_config(
         return None
 
 
-def update_podcast_config(db_path: str, config_id: int, updates: Dict[str, Any]) -> bool:
+def update_podcast_config(db_path: str, config_id: int, updates: dict[str, Any]) -> bool:
     try:
         with db_connection(db_path) as conn:
             cursor = conn.cursor()
@@ -173,12 +173,12 @@ def toggle_podcast_config(db_path: str, config_id: int, is_active: bool) -> bool
             cursor = conn.cursor()
             now = datetime.now().isoformat()
             cursor.execute(
-            """
+                """
             UPDATE podcast_configs
             SET is_active = ?, updated_at = ?
             WHERE id = ?
             """,
-            (1 if is_active else 0, now, config_id),
+                (1 if is_active else 0, now, config_id),
             )
             conn.commit()
             return cursor.rowcount > 0

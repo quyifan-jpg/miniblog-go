@@ -29,11 +29,9 @@ import re
 import threading
 import time
 from dataclasses import dataclass
-from typing import Optional
 
 from loguru import logger
 from rank_bm25 import BM25Okapi
-
 
 # ── Tokenizer ─────────────────────────────────────────────────────────
 # Word-level tokenizer for English. Handles alphanumeric tokens with
@@ -55,9 +53,10 @@ def _tokenize(text: str) -> list[str]:
 @dataclass
 class _IndexSnapshot:
     """Immutable BM25 snapshot. Replaced atomically on rebuild."""
+
     bm25: BM25Okapi
-    article_ids: list[int]   # parallel to bm25's corpus
-    built_at: float          # unix seconds
+    article_ids: list[int]  # parallel to bm25's corpus
+    built_at: float  # unix seconds
 
 
 # ── Singleton index with TTL refresh ──────────────────────────────────
@@ -71,14 +70,12 @@ class BM25Index:
 
     def __init__(self, *, ttl_seconds: float = 600.0):
         self._ttl_s = ttl_seconds
-        self._snapshot: Optional[_IndexSnapshot] = None
+        self._snapshot: _IndexSnapshot | None = None
         self._lock = threading.Lock()
 
     # ── Public API ─────────────────────────────────────────────────
 
-    def search(
-        self, query: str, *, top_k: int = 20
-    ) -> list[tuple[int, float]]:
+    def search(self, query: str, *, top_k: int = 20) -> list[tuple[int, float]]:
         """
         Return top-k (article_id, score) for the query.
 
@@ -98,6 +95,7 @@ class BM25Index:
         # Rank by score, take top-k that have non-zero relevance.
         # numpy.argsort is fastest path; we slice top-k from the tail.
         import numpy as np
+
         order = np.argsort(scores)[::-1][:top_k]
 
         results: list[tuple[int, float]] = []
@@ -127,7 +125,7 @@ class BM25Index:
 
     # ── Internals ──────────────────────────────────────────────────
 
-    def _get_or_build(self) -> Optional[_IndexSnapshot]:
+    def _get_or_build(self) -> _IndexSnapshot | None:
         snap = self._snapshot
         now = time.time()
 
@@ -143,7 +141,7 @@ class BM25Index:
             self._snapshot = self._build()
             return self._snapshot
 
-    def _build(self) -> Optional[_IndexSnapshot]:
+    def _build(self) -> _IndexSnapshot | None:
         start = time.perf_counter()
         try:
             rows = self._fetch_corpus()
@@ -166,10 +164,7 @@ class BM25Index:
         article_ids: list[int] = []
         tokens_corpus: list[list[str]] = []
         for row in rows:
-            text = " ".join(
-                str(row.get(col, "") or "")
-                for col in ("title", "summary", "content")
-            )
+            text = " ".join(str(row.get(col, "") or "") for col in ("title", "summary", "content"))
             tokens = _tokenize(text)
             if not tokens:
                 # rank-bm25 errors on empty token lists; insert a
@@ -213,7 +208,7 @@ class BM25Index:
 # ── Module-level singleton ────────────────────────────────────────────
 
 
-_index: Optional[BM25Index] = None
+_index: BM25Index | None = None
 _index_lock = threading.Lock()
 
 

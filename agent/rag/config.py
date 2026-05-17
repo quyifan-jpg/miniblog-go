@@ -12,8 +12,6 @@ Usage:
 
 from __future__ import annotations
 
-from typing import Optional
-
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -38,7 +36,9 @@ class RAGSettings(BaseSettings):
     chunk_max_per_article: int = Field(default=3, description="Max chunks kept per article")
 
     # ── Article Vector Channel ────────────────────────────────────────
-    article_min_similarity: float = Field(default=0.35, description="Min IP similarity for articles (OpenAI embeddings)")
+    article_min_similarity: float = Field(
+        default=0.35, description="Min IP similarity for articles (OpenAI embeddings)"
+    )
 
     # ── Social Media Channel ──────────────────────────────────────────
     social_media_days_back: int = Field(default=7, description="How many days back to search")
@@ -55,14 +55,14 @@ class RAGSettings(BaseSettings):
     rrf_k: int = Field(
         default=60,
         description="RRF smoothing parameter (Cormack et al. 2009). "
-                    "Higher → more weight on multi-channel presence. "
-                    "Lower → more weight on single-channel rank.",
+        "Higher → more weight on multi-channel presence. "
+        "Lower → more weight on single-channel rank.",
     )
 
     # ── Post-Processor: Rerank ────────────────────────────────────────
     rerank_enabled: bool = False  # Disabled by default — requires API key
     rerank_provider: str = Field(default="cohere", description="cohere | jina | disabled")
-    rerank_api_key: Optional[str] = Field(default=None, description="Rerank provider API key")
+    rerank_api_key: str | None = Field(default=None, description="Rerank provider API key")
     rerank_model: str = Field(default="rerank-v3.5", description="Rerank model name")
 
     # ── Post-Processor: Freshness Boost ──────────────────────────────
@@ -81,7 +81,7 @@ class RAGSettings(BaseSettings):
     quality_min_score: float = Field(default=0.3, description="Min score to keep")
     quality_min_length: int = Field(default=10, description="Min content length (chars)")
     quality_keep_best: bool = Field(default=True, description="Keep best chunk if all filtered")
-    quality_max_age_days: Optional[float] = Field(
+    quality_max_age_days: float | None = Field(
         default=None,
         description="Drop chunks older than this many days (None = no hard cutoff)",
     )

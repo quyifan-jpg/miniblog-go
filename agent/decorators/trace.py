@@ -38,14 +38,14 @@ import asyncio
 import functools
 import time
 import uuid
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from loguru import logger
 
 from core.logging import get_trace_id, set_trace_id
 
 
-def trace_root(name: Optional[str] = None):
+def trace_root(name: str | None = None):
     """
     Mark a function as the root of a trace tree.
 
@@ -54,10 +54,12 @@ def trace_root(name: Optional[str] = None):
 
     Equivalent to CAgent's @RagTraceRoot annotation.
     """
+
     def decorator(func: Callable) -> Callable:
         _name = name or func.__qualname__
 
         if asyncio.iscoroutinefunction(func):
+
             @functools.wraps(func)
             async def async_wrapper(*args, **kwargs):
                 trace_id = str(uuid.uuid4())
@@ -81,16 +83,17 @@ def trace_root(name: Optional[str] = None):
                 except Exception as e:
                     elapsed_ms = (time.perf_counter() - start) * 1000
                     logger.error(
-                        "TRACE_END [{name}] trace_id={trace_id} elapsed={elapsed:.1f}ms "
-                        "status=error error={error}",
+                        "TRACE_END [{name}] trace_id={trace_id} elapsed={elapsed:.1f}ms status=error error={error}",
                         name=_name,
                         trace_id=trace_id,
                         elapsed=elapsed_ms,
                         error=str(e),
                     )
                     raise
+
             return async_wrapper
         else:
+
             @functools.wraps(func)
             def sync_wrapper(*args, **kwargs):
                 trace_id = str(uuid.uuid4())
@@ -114,20 +117,20 @@ def trace_root(name: Optional[str] = None):
                 except Exception as e:
                     elapsed_ms = (time.perf_counter() - start) * 1000
                     logger.error(
-                        "TRACE_END [{name}] trace_id={trace_id} elapsed={elapsed:.1f}ms "
-                        "status=error error={error}",
+                        "TRACE_END [{name}] trace_id={trace_id} elapsed={elapsed:.1f}ms status=error error={error}",
                         name=_name,
                         trace_id=trace_id,
                         elapsed=elapsed_ms,
                         error=str(e),
                     )
                     raise
+
             return sync_wrapper
 
     return decorator
 
 
-def trace_node(name: Optional[str] = None):
+def trace_node(name: str | None = None):
     """
     Mark a function as a sub-operation within an active trace.
 
@@ -136,10 +139,12 @@ def trace_node(name: Optional[str] = None):
 
     Equivalent to CAgent's @RagTraceNode annotation.
     """
+
     def decorator(func: Callable) -> Callable:
         _name = name or func.__qualname__
 
         if asyncio.iscoroutinefunction(func):
+
             @functools.wraps(func)
             async def async_wrapper(*args, **kwargs):
                 trace_id = get_trace_id() or "no-trace"
@@ -155,8 +160,7 @@ def trace_node(name: Optional[str] = None):
                     result = await func(*args, **kwargs)
                     elapsed_ms = (time.perf_counter() - start) * 1000
                     logger.debug(
-                        "SPAN_END [{name}] trace_id={trace_id} span_id={span_id} "
-                        "elapsed={elapsed:.1f}ms status=ok",
+                        "SPAN_END [{name}] trace_id={trace_id} span_id={span_id} elapsed={elapsed:.1f}ms status=ok",
                         name=_name,
                         trace_id=trace_id,
                         span_id=span_id,
@@ -175,8 +179,10 @@ def trace_node(name: Optional[str] = None):
                         error=str(e),
                     )
                     raise
+
             return async_wrapper
         else:
+
             @functools.wraps(func)
             def sync_wrapper(*args, **kwargs):
                 trace_id = get_trace_id() or "no-trace"
@@ -195,14 +201,14 @@ def trace_node(name: Optional[str] = None):
                 except Exception as e:
                     elapsed_ms = (time.perf_counter() - start) * 1000
                     logger.warning(
-                        "SPAN_END [{name}] trace_id={trace_id} elapsed={elapsed:.1f}ms "
-                        "status=error error={error}",
+                        "SPAN_END [{name}] trace_id={trace_id} elapsed={elapsed:.1f}ms status=error error={error}",
                         name=_name,
                         trace_id=trace_id,
                         elapsed=elapsed_ms,
                         error=str(e),
                     )
                     raise
+
             return sync_wrapper
 
     return decorator

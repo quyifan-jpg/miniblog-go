@@ -10,34 +10,35 @@ Drop-in compatible: exposes search_agent_react_run(agent, query) which the
 main agno orchestrator can call exactly like the legacy search_agent_run.
 """
 
-import os
 import json
+import os
 import traceback
 from textwrap import dedent
-from typing import List, Optional
 
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field
-
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.tools import tool
-from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
+from pydantic import BaseModel
+
+from tools.chunk_search import chunk_search as _chunk_impl
+from tools.embedding_search import embedding_search as _embedding_impl
+from tools.google_news_discovery import google_news_discovery_run as _google_news_impl
+from tools.jikan_search import jikan_search as _jikan_impl
+from tools.search_articles import search_articles as _search_articles_impl
+from tools.social_media_search import (
+    social_media_search as _social_search_impl,
+)
+from tools.social_media_search import (
+    social_media_trending_search as _social_trending_impl,
+)
+from tools.web_search import run_browser_search as _browser_search_impl
 
 # Reuse the existing tool implementations as-is.
 # We pass `None` as the agent argument since they only use it for printing
 # or session_id (browser_search is the one exception, handled via closure).
 from tools.wikipedia_search import wikipedia_search as _wikipedia_impl
-from tools.google_news_discovery import google_news_discovery_run as _google_news_impl
-from tools.jikan_search import jikan_search as _jikan_impl
-from tools.embedding_search import embedding_search as _embedding_impl
-from tools.chunk_search import chunk_search as _chunk_impl
-from tools.social_media_search import (
-    social_media_search as _social_search_impl,
-    social_media_trending_search as _social_trending_impl,
-)
-from tools.search_articles import search_articles as _search_articles_impl
-from tools.web_search import run_browser_search as _browser_search_impl
 
 load_dotenv()
 
@@ -56,7 +57,7 @@ class ReturnItem(BaseModel):
 
 
 class SearchResults(BaseModel):
-    items: List[ReturnItem]
+    items: list[ReturnItem]
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -235,7 +236,7 @@ def _get_react_agent():
 # ─────────────────────────────────────────────────────────────────────
 # Result parsing
 # ─────────────────────────────────────────────────────────────────────
-def _extract_json(text: str) -> Optional[dict]:
+def _extract_json(text: str) -> dict | None:
     """Extract first JSON object from a string (tolerates ```json fences)."""
     if not text:
         return None
@@ -355,6 +356,7 @@ def search_agent_react_run(agent, query: str) -> str:
 # CLI test
 # ─────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
+
     class _FakeAgent:
         session_id = "test_react_session"
 

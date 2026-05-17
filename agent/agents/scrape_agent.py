@@ -28,15 +28,16 @@ External API (used by celery_tasks.py):
 from __future__ import annotations
 
 from agno.agent import Agent
-from pydantic import BaseModel, Field
 from dotenv import load_dotenv
+from pydantic import BaseModel, Field
+
 from tools.browser_crawler import create_browser_crawler
-from textwrap import dedent
 
 load_dotenv()
 
 
 # ── Pydantic model kept for any downstream code that imports it ───────────────
+
 
 class ScrapedContent(BaseModel):
     url: str = Field(..., description="The URL of the search result")
@@ -52,6 +53,7 @@ class ScrapedContent(BaseModel):
 
 
 # ── Batch browser crawl (unchanged from original) ────────────────────────────
+
 
 def crawl_urls_batch(search_results):
     """
@@ -108,6 +110,7 @@ def crawl_urls_batch(search_results):
 
 # ── Scrape agent tool ─────────────────────────────────────────────────────────
 
+
 def scrape_agent_run(agent: Agent, query: str) -> str:
     """
     Agno tool: fetch full content for each search result and verify quality.
@@ -133,19 +136,19 @@ def scrape_agent_run(agent: Agent, query: str) -> str:
     print(f"\n[scrape_agent_run] query='{query}'")
     session_id = agent.session_id
 
-    from services.internal_session_service import SessionService
     from graph.search_scrape_graph import run_parallel_verify
+    from services.internal_session_service import SessionService
 
     session = SessionService.get_session(session_id)
     current_state = session["state"]
 
     # ── Step 1: batch browser crawl ──────────────────────────────────────────
-    print(f"[scrape_agent_run] Step 1 — batch browser crawl")
+    print("[scrape_agent_run] Step 1 — batch browser crawl")
     updated_results, successful, failed = crawl_urls_batch(current_state["search_results"])
     print(f"[scrape_agent_run] Crawl complete: {successful} ok, {failed} failed")
 
     # ── Step 2: parallel LLM verification (LangGraph Send fan-out) ───────────
-    print(f"[scrape_agent_run] Step 2 — parallel LangGraph verification")
+    print("[scrape_agent_run] Step 2 — parallel LangGraph verification")
     verified_results = run_parallel_verify(updated_results, query, session_id)
 
     # ── Persist into session state ────────────────────────────────────────────

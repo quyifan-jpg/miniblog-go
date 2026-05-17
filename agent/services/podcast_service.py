@@ -1,10 +1,12 @@
-import os
 import json
-from typing import List, Dict, Optional, Any
-from datetime import datetime
-from fastapi import HTTPException, UploadFile
-from services.db_service import podcasts_db
 import math
+import os
+from datetime import datetime
+from typing import Any
+
+from fastapi import HTTPException, UploadFile
+
+from services.db_service import podcasts_db
 
 AUDIO_DIR = "podcasts/audio"
 IMAGE_DIR = "podcasts/images"
@@ -34,7 +36,7 @@ class PodcastService:
         language_code: str = None,
         tts_engine: str = None,
         has_audio: bool = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get a paginated list of podcasts with optional filtering.
         """
@@ -74,7 +76,9 @@ class PodcastService:
             query += " ORDER BY date DESC, created_at DESC"
             query += " LIMIT ? OFFSET ?"
             params.extend([per_page, offset])
-            total_result = await podcasts_db.execute_query(count_query, tuple(params[:-2] if params else ()), fetch=True, fetch_one=True)
+            total_result = await podcasts_db.execute_query(
+                count_query, tuple(params[:-2] if params else ()), fetch=True, fetch_one=True
+            )
             total_items = total_result.get("count", 0) if total_result else 0
             total_pages = math.ceil(total_items / per_page) if total_items > 0 else 0
             podcasts = await podcasts_db.execute_query(query, tuple(params), fetch=True)
@@ -101,7 +105,7 @@ class PodcastService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error loading podcasts: {str(e)}")
 
-    async def get_podcast(self, podcast_id: int) -> Optional[Dict[str, Any]]:
+    async def get_podcast(self, podcast_id: int) -> dict[str, Any] | None:
         """Get a specific podcast by ID without content."""
         try:
             query = """
@@ -134,20 +138,20 @@ class PodcastService:
                 except json.JSONDecodeError:
                     sources = []
             podcast["sources"] = sources
-            
+
             try:
                 banner_images = json.loads(podcast.get("banner_images", "[]"))
             except json.JSONDecodeError:
                 banner_images = []
             podcast["banner_images"] = banner_images
-            
+
             return podcast
         except Exception as e:
             if isinstance(e, HTTPException):
                 raise e
             raise HTTPException(status_code=500, detail=f"Error loading podcast: {str(e)}")
 
-    async def get_podcast_by_identifier(self, identifier: str) -> Optional[Dict[str, Any]]:
+    async def get_podcast_by_identifier(self, identifier: str) -> dict[str, Any] | None:
         """Get a specific podcast by string identifier (which is actually the ID)."""
         try:
             try:
@@ -160,7 +164,7 @@ class PodcastService:
                 raise e
             raise HTTPException(status_code=500, detail=f"Error loading podcast: {str(e)}")
 
-    async def get_podcast_content(self, podcast_id: int) -> Dict[str, Any]:
+    async def get_podcast_content(self, podcast_id: int) -> dict[str, Any]:
         """Get the content of a specific podcast."""
         try:
             query = """
@@ -180,18 +184,18 @@ class PodcastService:
                 raise e
             raise HTTPException(status_code=500, detail=f"Error loading podcast content: {str(e)}")
 
-    async def get_podcast_audio_url(self, podcast: Dict[str, Any]) -> Optional[str]:
+    async def get_podcast_audio_url(self, podcast: dict[str, Any]) -> str | None:
         """Get the URL for the podcast audio file if available."""
         if podcast.get("audio_generated") and podcast.get("audio_path"):
             return f"/audio/{podcast.get('audio_path')}"
         return None
 
-    async def get_podcast_formats(self) -> List[str]:
+    async def get_podcast_formats(self) -> list[str]:
         """Get list of available podcast formats for filtering."""
         # Note: This may need to be adapted if format field is added
         return ["daily", "weekly", "tech", "news"]
 
-    async def get_language_codes(self) -> List[str]:
+    async def get_language_codes(self) -> list[str]:
         try:
             query = """
             SELECT DISTINCT language_code FROM podcasts WHERE language_code IS NOT NULL
@@ -204,7 +208,7 @@ class PodcastService:
         except Exception as _:
             return ["en"]
 
-    async def get_tts_engines(self) -> List[str]:
+    async def get_tts_engines(self) -> list[str]:
         """Get list of available TTS engines for filtering."""
         try:
             query = """
@@ -217,12 +221,18 @@ class PodcastService:
                 if engine not in tts_engines:
                     tts_engines.append(engine)
             return sorted(tts_engines)
-        except Exception as e:
+        except Exception:
             return ["elevenlabs", "openai", "kokoro"]
 
     async def create_podcast(
-        self, title: str, date: str, content: Dict[str, Any], sources: List[str] = None, language_code: str = "en", tts_engine: str = "kokoro"
-    ) -> Dict[str, Any]:
+        self,
+        title: str,
+        date: str,
+        content: dict[str, Any],
+        sources: list[str] = None,
+        language_code: str = "en",
+        tts_engine: str = "kokoro",
+    ) -> dict[str, Any]:
         """Create a new podcast in the database."""
         try:
             content_json = json.dumps(content)
@@ -239,7 +249,7 @@ class PodcastService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error creating podcast: {str(e)}")
 
-    async def update_podcast(self, podcast_id: int, podcast_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def update_podcast(self, podcast_id: int, podcast_data: dict[str, Any]) -> dict[str, Any]:
         """Update podcast metadata and content."""
         try:
             existing = await self.get_podcast(podcast_id)
@@ -311,7 +321,7 @@ class PodcastService:
                 raise e
             raise HTTPException(status_code=500, detail=f"Error deleting podcast: {str(e)}")
 
-    async def upload_podcast_audio(self, podcast_id: int, file: UploadFile) -> Dict[str, Any]:
+    async def upload_podcast_audio(self, podcast_id: int, file: UploadFile) -> dict[str, Any]:
         """Upload an audio file for a podcast."""
         try:
             await self.get_podcast(podcast_id)
@@ -332,7 +342,7 @@ class PodcastService:
                 raise e
             raise HTTPException(status_code=500, detail=f"Error uploading audio: {str(e)}")
 
-    async def upload_podcast_banner(self, podcast_id: int, file: UploadFile) -> Dict[str, Any]:
+    async def upload_podcast_banner(self, podcast_id: int, file: UploadFile) -> dict[str, Any]:
         """Upload a banner image for a podcast."""
         try:
             await self.get_podcast(podcast_id)

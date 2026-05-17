@@ -1,9 +1,9 @@
 import os
-import soundfile as sf
 import platform
 import time
 import warnings
 
+import soundfile as sf
 
 os.environ["PYTHONWARNINGS"] = "ignore"
 os.environ["TORCH_CPP_LOG_LEVEL"] = "ERROR"

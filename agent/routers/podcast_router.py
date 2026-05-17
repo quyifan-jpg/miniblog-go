@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, File, UploadFile, Body, Query, Path
-from fastapi.responses import FileResponse
-from typing import List, Optional
 import os
 from datetime import datetime
-from models.podcast_schemas import Podcast, PodcastDetail, PodcastCreate, PodcastUpdate, PaginatedPodcasts
+
+from fastapi import APIRouter, Body, File, HTTPException, Path, Query, UploadFile
+from fastapi.responses import FileResponse
+
+from models.podcast_schemas import PaginatedPodcasts, Podcast, PodcastCreate, PodcastDetail, PodcastUpdate
 from services.podcast_service import podcast_service
 
 router = APIRouter()
@@ -13,12 +14,12 @@ router = APIRouter()
 async def get_podcasts(
     page: int = Query(1, ge=1, description="Page number"),
     per_page: int = Query(10, ge=1, le=100, description="Items per page"),
-    search: Optional[str] = Query(None, description="Search in title"),
-    date_from: Optional[str] = Query(None, description="Filter by date from (YYYY-MM-DD)"),
-    date_to: Optional[str] = Query(None, description="Filter by date to (YYYY-MM-DD)"),
-    language_code: Optional[str] = Query(None, description="Filter by language code"),
-    tts_engine: Optional[str] = Query(None, description="Filter by TTS engine"),
-    has_audio: Optional[bool] = Query(None, description="Filter by audio availability"),
+    search: str | None = Query(None, description="Search in title"),
+    date_from: str | None = Query(None, description="Filter by date from (YYYY-MM-DD)"),
+    date_to: str | None = Query(None, description="Filter by date to (YYYY-MM-DD)"),
+    language_code: str | None = Query(None, description="Filter by language code"),
+    tts_engine: str | None = Query(None, description="Filter by TTS engine"),
+    has_audio: bool | None = Query(None, description="Filter by audio availability"),
 ):
     """
     Get a paginated list of podcasts with optional filtering.
@@ -35,7 +36,7 @@ async def get_podcasts(
     )
 
 
-@router.get("/formats", response_model=List[str])
+@router.get("/formats", response_model=list[str])
 async def get_podcast_formats():
     """
     Get a list of available podcast formats for filtering.
@@ -43,7 +44,7 @@ async def get_podcast_formats():
     return await podcast_service.get_podcast_formats()
 
 
-@router.get("/language-codes", response_model=List[str])
+@router.get("/language-codes", response_model=list[str])
 async def get_language_codes():
     """
     Get a list of available language codes for filtering.
@@ -51,7 +52,7 @@ async def get_language_codes():
     return await podcast_service.get_language_codes()
 
 
-@router.get("/tts-engines", response_model=List[str])
+@router.get("/tts-engines", response_model=list[str])
 async def get_tts_engines():
     """
     Get a list of available TTS engines for filtering.
@@ -78,7 +79,13 @@ async def get_podcast(podcast_id: int = Path(..., description="The ID of the pod
     banner_images = podcast.get("banner_images", [])
     if "banner_images" in podcast:
         del podcast["banner_images"]
-    return {"podcast": podcast, "content": content, "audio_url": audio_url, "sources": sources, "banner_images": banner_images}
+    return {
+        "podcast": podcast,
+        "content": content,
+        "audio_url": audio_url,
+        "sources": sources,
+        "banner_images": banner_images,
+    }
 
 
 @router.get("/by-identifier/{identifier}", response_model=PodcastDetail)
@@ -101,7 +108,13 @@ async def get_podcast_by_identifier(identifier: str = Path(..., description="The
     banner_images = podcast.get("banner_images", [])
     if "banner_images" in podcast:
         del podcast["banner_images"]
-    return {"podcast": podcast, "content": content, "audio_url": audio_url, "sources": sources, "banner_images": banner_images}
+    return {
+        "podcast": podcast,
+        "content": content,
+        "audio_url": audio_url,
+        "sources": sources,
+        "banner_images": banner_images,
+    }
 
 
 @router.post("/", response_model=Podcast)
@@ -126,7 +139,9 @@ async def create_podcast(podcast_data: PodcastCreate = Body(...)):
 
 
 @router.put("/{podcast_id}", response_model=Podcast)
-async def update_podcast(podcast_id: int = Path(..., description="The ID of the podcast to update"), podcast_data: PodcastUpdate = Body(...)):
+async def update_podcast(
+    podcast_id: int = Path(..., description="The ID of the podcast to update"), podcast_data: PodcastUpdate = Body(...)
+):
     """
     Update an existing podcast's metadata and/or content.
 

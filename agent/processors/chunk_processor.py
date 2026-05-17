@@ -28,15 +28,15 @@ def run(batch_size: int = 50) -> dict:
     stats = vector_index_service.index_pending(batch_size=batch_size)
     logger.info(
         "Done — total={t} success={s} failed={f}",
-        t=stats["total"], s=stats["success"], f=stats["failed"],
+        t=stats["total"],
+        s=stats["success"],
+        f=stats["failed"],
     )
     return stats
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Trigger article+chunk re-embedding for any pending/stale rows"
-    )
+    parser = argparse.ArgumentParser(description="Trigger article+chunk re-embedding for any pending/stale rows")
     parser.add_argument("--batch_size", type=int, default=50)
     args = parser.parse_args()
     run(args.batch_size)

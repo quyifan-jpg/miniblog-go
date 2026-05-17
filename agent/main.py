@@ -14,10 +14,9 @@ Production-grade setup following CAgent patterns:
 from __future__ import annotations
 
 import os
-import time
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
-from typing import Any, Dict
+from datetime import UTC, datetime
+from typing import Any
 
 import aiofiles
 import uvicorn
@@ -25,26 +24,16 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, StreamingResponse
-import uvicorn
-import os
-import aiofiles
-from contextlib import asynccontextmanager
-from routers import article_router, podcast_router, source_router, task_router, podcast_config_router, async_podcast_agent_router, social_media_router
-from routers import auth_router
-from middleware.auth import AuthMiddleware
-from services.db_init import init_databases
-from dotenv import load_dotenv
 
 # ── Core infrastructure (must be imported before other app modules) ────────────
 from core.config import settings
 from core.exception_handler import register_exception_handlers
 from core.logging import setup_logging
-
-# ── Routers ───────────────────────────────────────────────────────────────────
+from middleware.auth import AuthMiddleware
 from routers import (
     article_router,
     async_podcast_agent_router,
+    auth_router,
     podcast_config_router,
     podcast_router,
     social_media_router,
@@ -52,6 +41,8 @@ from routers import (
     task_router,
 )
 from services.db_init import init_databases
+
+# ── Routers ───────────────────────────────────────────────────────────────────
 
 
 # ── Prometheus metrics (optional — degrades gracefully if not installed) ───────
@@ -70,8 +61,8 @@ def _prometheus_get_or_create(factory, name: str, documentation: str, labelnames
 
 
 try:
-    from prometheus_fastapi_instrumentator import Instrumentator
     from prometheus_client import Counter, Gauge, Histogram
+    from prometheus_fastapi_instrumentator import Instrumentator
 
     _prometheus_available = True
 
@@ -96,15 +87,14 @@ try:
 except ImportError:
     _prometheus_available = False
     logger.warning(
-        "prometheus-fastapi-instrumentator not installed. "
-        "Run: pip install prometheus-fastapi-instrumentator"
+        "prometheus-fastapi-instrumentator not installed. Run: pip install prometheus-fastapi-instrumentator"
     )
 
 
 def _register_plain_prometheus_metrics_route() -> None:
     """Expose /metrics without Instrumentator (faster under debuggers)."""
-    from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
     from fastapi import Response
+    from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
     @app.get("/metrics", include_in_schema=False)
     async def metrics_endpoint() -> Response:
@@ -112,6 +102,7 @@ def _register_plain_prometheus_metrics_route() -> None:
 
 
 # ── Lifespan ───────────────────────────────────────────────────────────────────
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -177,6 +168,7 @@ app.include_router(social_media_router.router, prefix="/api/social-media", tags=
 
 # 1. Request logging middleware (import after app creation to avoid circular imports)
 from middleware.request_logging import RequestLoggingMiddleware  # noqa: E402
+
 app.add_middleware(RequestLoggingMiddleware)
 
 # 2. CORS — Fixed: allow_origins=["*"] + allow_credentials=True is rejected by browsers.
@@ -223,32 +215,35 @@ else:
 # Fixes the broken docker-compose healthcheck that references /health but
 # the endpoint was never implemented.
 
+
 @app.get("/health", tags=["ops"], include_in_schema=False)
-async def health_check() -> Dict[str, Any]:
+async def health_check() -> dict[str, Any]:
     """
     Fast liveness probe for docker-compose / load-balancer health checks.
     Returns immediately without checking dependencies.
     """
     return {
         "status": "ok",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "env": settings.app_env,
     }
 
 
 @app.get("/health/detail", tags=["ops"], include_in_schema=False)
-async def health_detail() -> Dict[str, Any]:
+async def health_detail() -> dict[str, Any]:
     """
     Detailed readiness probe — checks each downstream dependency.
     Equivalent to CAgent's /actuator/health with component breakdown.
     """
-    components: Dict[str, Any] = {}
+    components: dict[str, Any] = {}
     overall_healthy = True
 
     # Check MySQL
     try:
         import asyncio
+
         from services.db_service import tracking_db
+
         await asyncio.wait_for(
             tracking_db.execute_query("SELECT 1", fetch_one=True),
             timeout=3.0,
@@ -261,6 +256,7 @@ async def health_detail() -> Dict[str, Any]:
     # Check Redis
     try:
         import redis.asyncio as aioredis
+
         r = aioredis.Redis(**{k: v for k, v in settings.redis_kwargs.items()})
         await r.ping()
         await r.aclose()
@@ -271,7 +267,7 @@ async def health_detail() -> Dict[str, Any]:
 
     return {
         "status": "healthy" if overall_healthy else "degraded",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "env": settings.app_env,
         "components": components,
     }
@@ -293,12 +289,19 @@ app.include_router(article_router.router, prefix="/api/articles", tags=["article
 app.include_router(source_router.router, prefix="/api/sources", tags=["sources-v0"], include_in_schema=False)
 app.include_router(podcast_router.router, prefix="/api/podcasts", tags=["podcasts-v0"], include_in_schema=False)
 app.include_router(task_router.router, prefix="/api/tasks", tags=["tasks-v0"], include_in_schema=False)
-app.include_router(podcast_config_router.router, prefix="/api/podcast-configs", tags=["podcast-configs-v0"], include_in_schema=False)
-app.include_router(async_podcast_agent_router.router, prefix="/api/podcast-agent", tags=["podcast-agent-v0"], include_in_schema=False)
-app.include_router(social_media_router.router, prefix="/api/social-media", tags=["social-media-v0"], include_in_schema=False)
+app.include_router(
+    podcast_config_router.router, prefix="/api/podcast-configs", tags=["podcast-configs-v0"], include_in_schema=False
+)
+app.include_router(
+    async_podcast_agent_router.router, prefix="/api/podcast-agent", tags=["podcast-agent-v0"], include_in_schema=False
+)
+app.include_router(
+    social_media_router.router, prefix="/api/social-media", tags=["social-media-v0"], include_in_schema=False
+)
 
 
 # ── Streaming endpoints (audio / video with HTTP Range support) ────────────────
+
 
 @app.get("/stream-audio/{filename}")
 async def stream_audio(filename: str, request: Request):
@@ -420,6 +423,7 @@ async def logo(rest_of_path: str):
 
 
 # ── React SPA fallback ─────────────────────────────────────────────────────────
+
 
 @app.get("/{full_path:path}", include_in_schema=False)
 async def serve_react(full_path: str, request: Request):

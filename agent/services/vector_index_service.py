@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import hashlib
 from datetime import datetime
-from typing import Optional
 
 from loguru import logger
 from openai import OpenAI
@@ -53,6 +52,7 @@ CLAIMABLE_STATUSES = (STATUS_PENDING, STATUS_STALE, STATUS_FAILED)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────
+
 
 def _compute_content_hash(title: str, content: str) -> str:
     """SHA-256 of title + content. Stable identity for index freshness."""
@@ -92,11 +92,12 @@ def _build_chunk_texts(article: dict) -> list[str]:
 
 # ── Service ───────────────────────────────────────────────────────────
 
+
 class VectorIndexService:
     """Façade over Milvus that enforces the MySQL-driven state machine."""
 
     def __init__(self) -> None:
-        self._openai: Optional[OpenAI] = None
+        self._openai: OpenAI | None = None
 
     # ── OpenAI client (cached) ────────────────────────────────────────
 
@@ -148,8 +149,7 @@ class VectorIndexService:
         with db_connection(db_path) as conn:
             cur = conn.cursor()
             cur.execute(
-                "SELECT content_hash, indexed_hash, embedding_status "
-                "FROM crawled_articles WHERE id = %s",
+                "SELECT content_hash, indexed_hash, embedding_status FROM crawled_articles WHERE id = %s",
                 (article_id,),
             )
             row = cur.fetchone()
@@ -172,14 +172,12 @@ class VectorIndexService:
                 pass
             elif current_status == STATUS_INDEXED:
                 cur.execute(
-                    "UPDATE crawled_articles "
-                    "SET content_hash=%s, embedding_status=%s WHERE id=%s",
+                    "UPDATE crawled_articles SET content_hash=%s, embedding_status=%s WHERE id=%s",
                     (new_hash, STATUS_STALE, article_id),
                 )
             else:
                 cur.execute(
-                    "UPDATE crawled_articles "
-                    "SET content_hash=%s, embedding_status=%s WHERE id=%s",
+                    "UPDATE crawled_articles SET content_hash=%s, embedding_status=%s WHERE id=%s",
                     (new_hash, STATUS_PENDING, article_id),
                 )
             conn.commit()
@@ -212,8 +210,7 @@ class VectorIndexService:
         try:
             article = execute_query(
                 db_path,
-                "SELECT id, title, url, summary, content, content_hash "
-                "FROM crawled_articles WHERE id=%s",
+                "SELECT id, title, url, summary, content, content_hash FROM crawled_articles WHERE id=%s",
                 (article_id,),
                 fetch_one=True,
             )
@@ -258,13 +255,17 @@ class VectorIndexService:
                 conn.commit()
 
             # 4. Insert article-level vector.
-            mv.insert_articles([{
-                "id": article_id,
-                "title": title,
-                "url": url,
-                "summary": summary,
-                "vector": article_vector,
-            }])
+            mv.insert_articles(
+                [
+                    {
+                        "id": article_id,
+                        "title": title,
+                        "url": url,
+                        "summary": summary,
+                        "vector": article_vector,
+                    }
+                ]
+            )
 
             # 5. Insert chunks (MySQL row first to mint id, then Milvus).
             if chunk_texts:
@@ -282,17 +283,18 @@ class VectorIndexService:
                         chunk_ids.append(cur.lastrowid)
                     conn.commit()
 
-                rows = [{
-                    "id": cid,
-                    "article_id": article_id,
-                    "chunk_index": idx,
-                    "chunk_text": ct[:8192],
-                    "title": title,
-                    "url": url,
-                    "vector": vec,
-                } for idx, (cid, ct, vec) in enumerate(
-                    zip(chunk_ids, chunk_texts, chunk_vectors)
-                )]
+                rows = [
+                    {
+                        "id": cid,
+                        "article_id": article_id,
+                        "chunk_index": idx,
+                        "chunk_text": ct[:8192],
+                        "title": title,
+                        "url": url,
+                        "vector": vec,
+                    }
+                    for idx, (cid, ct, vec) in enumerate(zip(chunk_ids, chunk_texts, chunk_vectors))
+                ]
                 mv.insert_chunks(rows)
 
             # 6. Mark indexed.
@@ -330,8 +332,7 @@ class VectorIndexService:
         with db_connection(get_tracking_db_path()) as conn:
             cur = conn.cursor()
             cur.execute(
-                "UPDATE crawled_articles "
-                "SET embedding_enabled=0, embedding_status=%s WHERE id=%s",
+                "UPDATE crawled_articles SET embedding_enabled=0, embedding_status=%s WHERE id=%s",
                 (STATUS_DISABLED, article_id),
             )
             conn.commit()
@@ -342,8 +343,7 @@ class VectorIndexService:
         with db_connection(get_tracking_db_path()) as conn:
             cur = conn.cursor()
             cur.execute(
-                "UPDATE crawled_articles "
-                "SET embedding_enabled=1, embedding_status=%s WHERE id=%s",
+                "UPDATE crawled_articles SET embedding_enabled=1, embedding_status=%s WHERE id=%s",
                 (STATUS_PENDING, article_id),
             )
             conn.commit()
@@ -371,18 +371,21 @@ class VectorIndexService:
         net-new work).
         """
         placeholders = ",".join(["%s"] * len(CLAIMABLE_STATUSES))
-        rows = execute_query(
-            get_tracking_db_path(),
-            f"SELECT id FROM crawled_articles "
-            f"WHERE embedding_enabled = 1 "
-            f"  AND ai_status = 'success' "
-            f"  AND embedding_status IN ({placeholders}) "
-            f"ORDER BY FIELD(embedding_status, 'failed', 'stale', 'pending'), "
-            f"         published_date DESC "
-            f"LIMIT %s",
-            (*CLAIMABLE_STATUSES, batch_size),
-            fetch=True,
-        ) or []
+        rows = (
+            execute_query(
+                get_tracking_db_path(),
+                f"SELECT id FROM crawled_articles "
+                f"WHERE embedding_enabled = 1 "
+                f"  AND ai_status = 'success' "
+                f"  AND embedding_status IN ({placeholders}) "
+                f"ORDER BY FIELD(embedding_status, 'failed', 'stale', 'pending'), "
+                f"         published_date DESC "
+                f"LIMIT %s",
+                (*CLAIMABLE_STATUSES, batch_size),
+                fetch=True,
+            )
+            or []
+        )
 
         stats = {"total": len(rows), "success": 0, "failed": 0}
         for row in rows:
@@ -423,9 +426,7 @@ class VectorIndexService:
         with db_connection(get_tracking_db_path()) as conn:
             cur = conn.cursor()
             cur.execute(
-                "UPDATE crawled_articles "
-                "SET embedding_status=%s, indexed_hash=%s, last_indexed_at=%s "
-                "WHERE id=%s",
+                "UPDATE crawled_articles SET embedding_status=%s, indexed_hash=%s, last_indexed_at=%s WHERE id=%s",
                 (STATUS_INDEXED, content_hash, datetime.now(), article_id),
             )
             conn.commit()

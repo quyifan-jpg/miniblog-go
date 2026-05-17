@@ -20,7 +20,7 @@ from rag.channels.base import SearchChannel
 from rag.models import ChannelResult, ChannelType, MetadataKey, RetrievedChunk, SearchContext
 
 EMBEDDING_MODEL = "text-embedding-3-small"
-MIN_SIMILARITY  = 0.35   # IP score threshold; post-processors filter further
+MIN_SIMILARITY = 0.35  # IP score threshold; post-processors filter further
 
 
 class ArticleVectorChannel(SearchChannel):
@@ -39,6 +39,7 @@ class ArticleVectorChannel(SearchChannel):
     def is_enabled(self, context: SearchContext) -> bool:
         try:
             from db.milvus import get_milvus
+
             get_milvus()
             return True
         except Exception as e:
@@ -62,7 +63,7 @@ class ArticleVectorChannel(SearchChannel):
         from db.milvus import get_milvus
 
         try:
-            mv   = get_milvus()
+            mv = get_milvus()
             hits = mv.search_articles(query_embedding, top_k=top_k)
         except Exception as e:
             logger.error("Milvus article search failed: {e}", e=e)
@@ -82,21 +83,23 @@ class ArticleVectorChannel(SearchChannel):
         # 5. Build results
         chunks = []
         for h in hits:
-            aid     = h["article_id"]
+            aid = h["article_id"]
             article = article_map.get(aid, {})
             summary = h.get("summary") or article.get("summary") or (article.get("content", "") or "")[:500]
-            chunks.append(RetrievedChunk(
-                id=str(aid),
-                content=summary,
-                title=h.get("title") or article.get("title", "Untitled"),
-                url=h.get("url") or article.get("url", ""),
-                score=float(h["score"]),
-                source_channel=ChannelType.ARTICLE_VECTOR,
-                metadata={
-                    MetadataKey.PUBLISHED_DATE: article.get("published_date", ""),
-                    MetadataKey.SOURCE_ID:      str(article.get("source_id", "")),
-                },
-            ))
+            chunks.append(
+                RetrievedChunk(
+                    id=str(aid),
+                    content=summary,
+                    title=h.get("title") or article.get("title", "Untitled"),
+                    url=h.get("url") or article.get("url", ""),
+                    score=float(h["score"]),
+                    source_channel=ChannelType.ARTICLE_VECTOR,
+                    metadata={
+                        MetadataKey.PUBLISHED_DATE: article.get("published_date", ""),
+                        MetadataKey.SOURCE_ID: str(article.get("source_id", "")),
+                    },
+                )
+            )
 
         chunks.sort(key=lambda c: c.score, reverse=True)
 
@@ -116,6 +119,7 @@ class ArticleVectorChannel(SearchChannel):
 
     def _generate_embedding(self, query: str) -> list[float] | None:
         from openai import OpenAI
+
         from utils.load_api_keys import load_api_key
 
         api_key = load_api_key("OPENAI_API_KEY")

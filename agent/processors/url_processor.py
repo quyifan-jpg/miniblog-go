@@ -1,6 +1,6 @@
+from db.articles import store_crawled_article, update_entry_status
 from db.config import get_tracking_db_path
 from db.feeds import get_uncrawled_entries
-from db.articles import store_crawled_article, update_entry_status
 from utils.crawl_url import get_web_data
 
 

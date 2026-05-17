@@ -1,18 +1,19 @@
+import asyncio
 import hashlib
 import json
 import os
-import asyncio
 import uuid
-from typing import Any, Dict, Iterable, Optional
+from collections.abc import Iterable
+from typing import Any
 
 import redis
 from redis.asyncio import ConnectionPool, Redis
 
 
-def _redis_auth_kwargs() -> Dict[str, Any]:
+def _redis_auth_kwargs() -> dict[str, Any]:
     redis_username = os.environ.get("REDIS_USERNAME", None)
     redis_password = os.environ.get("REDIS_PASSWORD", None)
-    auth_kwargs: Dict[str, Any] = {}
+    auth_kwargs: dict[str, Any] = {}
     if redis_username:
         auth_kwargs["username"] = redis_username
     if redis_password:
@@ -20,7 +21,7 @@ def _redis_auth_kwargs() -> Dict[str, Any]:
     return auth_kwargs
 
 
-def _redis_base_config() -> Dict[str, Any]:
+def _redis_base_config() -> dict[str, Any]:
     redis_host = os.environ.get("REDIS_HOST", "localhost")
     redis_port = int(os.environ.get("REDIS_PORT", 6379))
     redis_db = int(os.environ.get("REDIS_DB", 0)) + 1
@@ -32,7 +33,7 @@ def _redis_base_config() -> Dict[str, Any]:
     }
 
 
-def build_cache_key(module: str, endpoint: str, params: Dict[str, Any]) -> str:
+def build_cache_key(module: str, endpoint: str, params: dict[str, Any]) -> str:
     serialized = json.dumps(params, sort_keys=True, separators=(",", ":"), default=str)
     params_hash = hashlib.md5(serialized.encode("utf-8")).hexdigest()
     return f"{module}:{endpoint}:{params_hash}"
@@ -42,7 +43,7 @@ class SyncRedisCache:
     def __init__(self):
         self._client = redis.Redis(**_redis_base_config())
 
-    def get_json(self, key: str) -> Optional[Any]:
+    def get_json(self, key: str) -> Any | None:
         try:
             value = self._client.get(key)
             if value is None:
@@ -89,7 +90,7 @@ class AsyncRedisCache:
         self._pool = ConnectionPool.from_url(redis_url, max_connections=20, **auth_kwargs)
         self._client = Redis(connection_pool=self._pool)
 
-    async def get_json(self, key: str) -> Optional[Any]:
+    async def get_json(self, key: str) -> Any | None:
         try:
             value = await self._client.get(key)
             if value is None:

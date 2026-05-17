@@ -1,27 +1,30 @@
-from agno.agent import Agent
+import json
 import os
 import traceback
-from dotenv import load_dotenv
-from services.celery_app import app, SessionLockedTask
+
+from agno.agent import Agent
 from agno.storage.singlestore import SingleStoreStorage
+from dotenv import load_dotenv
+
+from agents.audio_generate_agent import audio_generate_agent_run
+from agents.image_generate_agent import image_generation_agent_run
+from agents.scrape_agent import scrape_agent_run
+from agents.script_agent import podcast_script_agent_run
+from agents.search_agent import search_agent_run
 from db.agent_config_v2 import (
     AGENT_DESCRIPTION,
     AGENT_INSTRUCTIONS,
     INITIAL_SESSION_STATE,
 )
+from memory.manager import MemoryManager
+from services.celery_app import SessionLockedTask, app
 from services.model_router import router
-from agents.search_agent import search_agent_run
-from agents.scrape_agent import scrape_agent_run
-from agents.script_agent import podcast_script_agent_run
+from tools.session_state_manager import mark_session_finished, update_chat_title, update_language
 from tools.ui_manager import ui_manager_run
 from tools.user_source_selection import user_source_selection_run
-from tools.session_state_manager import update_language, update_chat_title, mark_session_finished
-from agents.image_generate_agent import image_generation_agent_run
-from agents.audio_generate_agent import audio_generate_agent_run
-from memory.manager import MemoryManager
-import json
 
 load_dotenv()
+
 
 def _get_mysql_db_url() -> str:
     db_url = os.environ.get("DATABASE_URL", "")
@@ -36,6 +39,7 @@ def _get_mysql_db_url() -> str:
 def _get_mysql_db_name() -> str:
     """Extract database name from DATABASE_URL for use as agno storage schema."""
     from urllib.parse import urlparse
+
     db_url = os.environ.get("DATABASE_URL", "")
     return urlparse(db_url).path.lstrip("/")
 

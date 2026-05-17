@@ -1,4 +1,3 @@
-
 def search_news(google_news, keyword):
     resutls = google_news.get_news(keyword)
     return resutls
@@ -19,9 +18,10 @@ def google_news_discovery_run(
     max_results: int = 5,
     top_news: bool = False,
 ) -> str:
-    from gnews import GNews
     import json
-    
+
+    from gnews import GNews
+
     """
     This is a wrapper function for the google news.
 
@@ -49,5 +49,5 @@ def google_news_discovery_run(
         results = get_top_news(google_news)
     if keyword:
         results = search_news(google_news, keyword)
-    print('google news search found:', len(results))
+    print("google news search found:", len(results))
     return f"for all results is_scrapping_required: True, results: {json.dumps(results)}"

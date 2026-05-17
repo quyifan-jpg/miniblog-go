@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
-from .connection import execute_query, db_connection
+
+from .connection import db_connection, execute_query
 
 
 def create_task(

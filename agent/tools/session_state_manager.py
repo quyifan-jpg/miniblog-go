@@ -1,9 +1,10 @@
-from agno.agent import Agent
-from datetime import datetime
-from db.config import get_podcasts_db_path, DB_PATH
-import os
 import json
+import os
+from datetime import datetime
 
+from agno.agent import Agent
+
+from db.config import DB_PATH, get_podcasts_db_path
 from db.connection import db_connection
 
 

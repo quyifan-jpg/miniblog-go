@@ -1,6 +1,6 @@
-
 import sys
 from datetime import datetime
+
 from db.config import get_social_media_db_path
 from tools.social.x_scraper import crawl_x_profile
 

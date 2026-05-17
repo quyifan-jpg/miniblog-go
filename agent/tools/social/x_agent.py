@@ -1,12 +1,11 @@
-from typing import List
-from pydantic import BaseModel, Field
+import uuid
 from enum import Enum
 from textwrap import dedent
+
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
 from dotenv import load_dotenv
-import uuid
-
+from pydantic import BaseModel, Field
 
 load_dotenv()
 
@@ -37,13 +36,15 @@ class Category(str, Enum):
 class AnalyzedPost(BaseModel):
     post_id: str = Field(..., description="The unique identifier for the post")
     sentiment: SentimentType = Field(..., description="The sentiment of the post")
-    categories: List[Category] = Field(..., description="List of categories that best describe this post")
-    tags: List[str] = Field(..., description="List of relevant tags or keywords extracted from the post")
+    categories: list[Category] = Field(..., description="List of categories that best describe this post")
+    tags: list[str] = Field(..., description="List of relevant tags or keywords extracted from the post")
     reasoning: str = Field(..., description="Brief explanation of why these sentiments and categories were assigned")
 
 
 class AnalysisResponse(BaseModel):
-    analyzed_posts: List[AnalyzedPost] = Field(..., description="List of analyzed posts with sentiment and categorization")
+    analyzed_posts: list[AnalyzedPost] = Field(
+        ..., description="List of analyzed posts with sentiment and categorization"
+    )
 
 
 SENTIMENT_AGENT_DESCRIPTION = "Expert sentiment analyzer and content categorizer for social media posts."

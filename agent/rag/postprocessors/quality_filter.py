@@ -13,8 +13,7 @@ to avoid returning empty results (configurable).
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from loguru import logger
 
@@ -32,7 +31,7 @@ class QualityFilterProcessor(PostProcessor):
         min_score: float = 0.3,
         min_content_length: int = 10,
         keep_best_when_all_filtered: bool = True,
-        max_age_days: Optional[float] = None,
+        max_age_days: float | None = None,
     ):
         """
         Args:
@@ -63,7 +62,7 @@ class QualityFilterProcessor(PostProcessor):
         if not chunks:
             return []
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # ── Step 1: hard freshness cutoff ─────────────────────────────
         # Stale content is unconditionally rejected — keep_best cannot
@@ -94,11 +93,7 @@ class QualityFilterProcessor(PostProcessor):
             fresh = chunks
 
         # ── Step 2: score + length filter (with keep_best rescue) ─────
-        filtered = [
-            c for c in fresh
-            if c.score >= self._min_score
-            and len(c.content) >= self._min_content_length
-        ]
+        filtered = [c for c in fresh if c.score >= self._min_score and len(c.content) >= self._min_content_length]
 
         dropped = len(fresh) - len(filtered)
         if dropped > 0:
@@ -113,8 +108,7 @@ class QualityFilterProcessor(PostProcessor):
             # Score/length filtered everything — return best fresh chunk as safety net.
             best = max(fresh, key=lambda c: c.score)
             logger.warning(
-                "QualityFilter: all chunks filtered, keeping best "
-                "(score={s:.3f}, id={id})",
+                "QualityFilter: all chunks filtered, keeping best (score={s:.3f}, id={id})",
                 s=best.score,
                 id=best.id,
             )

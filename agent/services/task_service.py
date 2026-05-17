@@ -1,14 +1,16 @@
-from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
+from typing import Any
+
 from fastapi import HTTPException
-from services.db_service import tasks_db
+
 from models.tasks_schemas import TASK_TYPES
+from services.db_service import tasks_db
 
 
 class TaskService:
     """Service for managing scheduled tasks."""
 
-    async def get_tasks(self, include_disabled: bool = False) -> List[Dict[str, Any]]:
+    async def get_tasks(self, include_disabled: bool = False) -> list[dict[str, Any]]:
         """Get all tasks with optional filtering."""
         try:
             if include_disabled:
@@ -37,7 +39,7 @@ class TaskService:
                 raise e
             raise HTTPException(status_code=500, detail=f"Error fetching tasks: {str(e)}")
 
-    async def get_task(self, task_id: int) -> Dict[str, Any]:
+    async def get_task(self, task_id: int) -> dict[str, Any]:
         """Get a specific task by ID."""
         try:
             query = """
@@ -56,7 +58,7 @@ class TaskService:
                 raise e
             raise HTTPException(status_code=500, detail=f"Error fetching task: {str(e)}")
 
-    async def check_task_exists(self, task_type: str) -> Optional[Dict[str, Any]]:
+    async def check_task_exists(self, task_type: str) -> dict[str, Any] | None:
         """Check if a task with the given type already exists."""
         try:
             query = """
@@ -78,9 +80,9 @@ class TaskService:
         task_type: str,
         frequency: int,
         frequency_unit: str,
-        description: Optional[str] = None,
+        description: str | None = None,
         enabled: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Create a new task."""
         try:
             existing_task = await self.check_task_exists(task_type)
@@ -91,7 +93,8 @@ class TaskService:
                 )
             if task_type not in TASK_TYPES:
                 raise HTTPException(
-                    status_code=400, detail=f"Invalid task type: '{task_type}'. Please select a valid task type from the available options."
+                    status_code=400,
+                    detail=f"Invalid task type: '{task_type}'. Please select a valid task type from the available options.",
                 )
             command = TASK_TYPES[task_type]["command"]
             current_time = datetime.now().isoformat()
@@ -117,7 +120,7 @@ class TaskService:
                 raise e
             raise HTTPException(status_code=500, detail=f"Error creating task: {str(e)}")
 
-    async def update_task(self, task_id: int, updates: Dict[str, Any]) -> Dict[str, Any]:
+    async def update_task(self, task_id: int, updates: dict[str, Any]) -> dict[str, Any]:
         """Update an existing task."""
         try:
             current_task = await self.get_task(task_id)
@@ -162,7 +165,7 @@ class TaskService:
                 raise e
             raise HTTPException(status_code=500, detail=f"Error updating task: {str(e)}")
 
-    async def delete_task(self, task_id: int) -> Dict[str, str]:
+    async def delete_task(self, task_id: int) -> dict[str, str]:
         """Delete a task."""
         try:
             task = await self.get_task(task_id)
@@ -177,7 +180,7 @@ class TaskService:
                 raise e
             raise HTTPException(status_code=500, detail=f"Error deleting task: {str(e)}")
 
-    async def toggle_task(self, task_id: int, enable: bool) -> Dict[str, Any]:
+    async def toggle_task(self, task_id: int, enable: bool) -> dict[str, Any]:
         """Enable or disable a task."""
         try:
             query = """
@@ -192,7 +195,9 @@ class TaskService:
                 raise e
             raise HTTPException(status_code=500, detail=f"Error updating task: {str(e)}")
 
-    async def get_task_executions(self, task_id: Optional[int] = None, page: int = 1, per_page: int = 10) -> Dict[str, Any]:
+    async def get_task_executions(
+        self, task_id: int | None = None, page: int = 1, per_page: int = 10
+    ) -> dict[str, Any]:
         """Get paginated task executions."""
         try:
             offset = (page - 1) * per_page
@@ -251,7 +256,7 @@ class TaskService:
                 raise e
             raise HTTPException(status_code=500, detail=f"Error fetching task executions: {str(e)}")
 
-    async def get_pending_tasks(self) -> List[Dict[str, Any]]:
+    async def get_pending_tasks(self) -> list[dict[str, Any]]:
         """Get tasks that are due to run."""
         try:
             query = """
@@ -279,7 +284,7 @@ class TaskService:
                 raise e
             raise HTTPException(status_code=500, detail=f"Error fetching pending tasks: {str(e)}")
 
-    async def get_stats(self) -> Dict[str, Any]:
+    async def get_stats(self) -> dict[str, Any]:
         """Get task statistics."""
         try:
             task_query = """

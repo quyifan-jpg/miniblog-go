@@ -1,7 +1,7 @@
 import json
-from datetime import datetime
-from typing import Dict, Any
 import re
+from datetime import datetime
+from typing import Any
 
 
 def parse_facebook_posts(data):
@@ -14,7 +14,7 @@ def parse_facebook_posts(data):
     return posts
 
 
-def parse_facebook_post(story_node: Dict[str, Any]) -> Dict[str, Any]:
+def parse_facebook_post(story_node: dict[str, Any]) -> dict[str, Any]:
     try:
         post_info = {
             "post_id": story_node.get("post_id"),
@@ -35,7 +35,12 @@ def parse_facebook_post(story_node: Dict[str, Any]) -> Dict[str, Any]:
                 break
         url_sources = [
             (story_node.get("comet_sections") or {}).get("content", {}).get("story", {}).get("wwwURL"),
-            (story_node.get("comet_sections") or {}).get("feedback", {}).get("story", {}).get("story_ufi_container", {}).get("story", {}).get("url"),
+            (story_node.get("comet_sections") or {})
+            .get("feedback", {})
+            .get("story", {})
+            .get("story_ufi_container", {})
+            .get("story", {})
+            .get("url"),
             (story_node.get("comet_sections") or {})
             .get("feedback", {})
             .get("story", {})
@@ -66,12 +71,15 @@ def parse_facebook_post(story_node: Dict[str, Any]) -> Dict[str, Any]:
         return {}
 
 
-def extract_message_content(story_node: Dict[str, Any]) -> Dict[str, Any]:
+def extract_message_content(story_node: dict[str, Any]) -> dict[str, Any]:
     message_info = {"message_text": "", "hashtags": [], "mentions": [], "links": []}
     try:
         message_sources = [
             (story_node.get("message") or {}).get("text", ""),
-            ((((story_node.get("comet_sections") or {}).get("content") or {}).get("story") or {}).get("message") or {}).get("text", ""),
+            (
+                (((story_node.get("comet_sections") or {}).get("content") or {}).get("story") or {}).get("message")
+                or {}
+            ).get("text", ""),
         ]
         for source in message_sources:
             if source:
@@ -84,7 +92,9 @@ def extract_message_content(story_node: Dict[str, Any]) -> Dict[str, Any]:
                 entity_type = entity.get("__typename")
 
                 if entity_type == "Hashtag":
-                    hashtag_text = message_info["message_text"][range_item["offset"] : range_item["offset"] + range_item["length"]]
+                    hashtag_text = message_info["message_text"][
+                        range_item["offset"] : range_item["offset"] + range_item["length"]
+                    ]
                     message_info["hashtags"].append(
                         {
                             "text": hashtag_text,
@@ -93,7 +103,9 @@ def extract_message_content(story_node: Dict[str, Any]) -> Dict[str, Any]:
                         }
                     )
                 elif entity_type == "User":
-                    mention_text = message_info["message_text"][range_item["offset"] : range_item["offset"] + range_item["length"]]
+                    mention_text = message_info["message_text"][
+                        range_item["offset"] : range_item["offset"] + range_item["length"]
+                    ]
                     message_info["mentions"].append(
                         {
                             "text": mention_text,
@@ -106,7 +118,7 @@ def extract_message_content(story_node: Dict[str, Any]) -> Dict[str, Any]:
     return message_info
 
 
-def extract_actors_info(story_node: Dict[str, Any]) -> Dict[str, Any]:
+def extract_actors_info(story_node: dict[str, Any]) -> dict[str, Any]:
     actors_info = {
         "author_name": "",
         "author_id": "",
@@ -139,7 +151,7 @@ def extract_actors_info(story_node: Dict[str, Any]) -> Dict[str, Any]:
     return actors_info
 
 
-def extract_attachments(story_node: Dict[str, Any]) -> Dict[str, Any]:
+def extract_attachments(story_node: dict[str, Any]) -> dict[str, Any]:
     attachments_info = {"attachments": [], "photos": [], "videos": [], "links": []}
     try:
         attachments = story_node.get("attachments", [])
@@ -174,7 +186,7 @@ def extract_attachments(story_node: Dict[str, Any]) -> Dict[str, Any]:
     return attachments_info
 
 
-def extract_engagement_data(story_node: Dict[str, Any]) -> Dict[str, Any]:
+def extract_engagement_data(story_node: dict[str, Any]) -> dict[str, Any]:
     """Extract likes, comments, shares, and other engagement metrics"""
     engagement_info = {
         "reaction_count": 0,
@@ -224,11 +236,14 @@ def extract_engagement_data(story_node: Dict[str, Any]) -> Dict[str, Any]:
     return engagement_info
 
 
-def extract_privacy_info(story_node: Dict[str, Any]) -> Dict[str, Any]:
+def extract_privacy_info(story_node: dict[str, Any]) -> dict[str, Any]:
     privacy_info = {"privacy_scope": "", "audience": ""}
     try:
         privacy_sources = [
-            (story_node.get("comet_sections") or {}).get("context_layout", {}).get("story", {}).get("privacy_scope", {}),
+            (story_node.get("comet_sections") or {})
+            .get("context_layout", {})
+            .get("story", {})
+            .get("privacy_scope", {}),
             story_node.get("privacy_scope", {}),
             next(
                 (
@@ -339,7 +354,7 @@ def format_mentions(mentions):
     return ",".join(mention_texts)
 
 
-def format_media(fb_post_data: Dict[str, Any]) -> str:
+def format_media(fb_post_data: dict[str, Any]) -> str:
     media_items = []
     photos = fb_post_data.get("photos", [])
     for photo in photos:
@@ -407,7 +422,7 @@ def normalize_facebook_posts_batch(fb_posts_data):
 
 
 if __name__ == "__main__":
-    with open("fb_post_input.json", "r", encoding="utf-8") as f:
+    with open("fb_post_input.json", encoding="utf-8") as f:
         facebook_data = json.load(f)
 
     parsed_post = parse_facebook_posts(facebook_data)

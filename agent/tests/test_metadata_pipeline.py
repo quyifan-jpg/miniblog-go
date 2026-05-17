@@ -10,17 +10,16 @@ Run:
 
 from __future__ import annotations
 
-import math
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from rag.models import ChannelResult, ChannelType, MetadataKey, RetrievedChunk, SearchContext
+from rag.models import ChannelType, MetadataKey, RetrievedChunk, SearchContext
 from rag.postprocessors.freshness import FreshnessBoostProcessor, _parse_date
 from rag.postprocessors.quality_filter import QualityFilterProcessor
 
-
 # ─── Helpers ──────────────────────────────────────────────────────────────────
+
 
 def _ctx(query: str = "test", top_k: int = 10) -> SearchContext:
     return SearchContext(original_query=query, top_k=top_k)
@@ -48,7 +47,7 @@ def _chunk(
 
 
 def _days_ago(n: float) -> datetime:
-    return datetime.now(timezone.utc) - timedelta(days=n)
+    return datetime.now(UTC) - timedelta(days=n)
 
 
 # ─── MetadataKey ──────────────────────────────────────────────────────────────
@@ -93,7 +92,7 @@ class TestParseDate:
         assert dt.tzinfo is not None
 
     def test_datetime_object_passthrough(self):
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         dt = _parse_date(now)
         assert dt == now
 
@@ -141,7 +140,7 @@ class TestFreshnessBoost:
     def test_sorted_by_score_descending(self):
         proc = FreshnessBoostProcessor(half_life_days=7, floor_multiplier=0.0)
         chunks = [
-            _chunk("old",   score=0.9, published_date=_days_ago(90)),
+            _chunk("old", score=0.9, published_date=_days_ago(90)),
             _chunk("fresh", score=0.7, published_date=_days_ago(1)),
         ]
         out = proc.process(chunks, [], _ctx())
@@ -189,7 +188,7 @@ class TestQualityFilterMaxAge:
 
     def test_age_filter_applied_before_keep_best(self):
         proc = QualityFilterProcessor(
-            min_score=0.99,       # very high threshold — would normally trigger keep_best
+            min_score=0.99,  # very high threshold — would normally trigger keep_best
             max_age_days=30,
             keep_best_when_all_filtered=True,
         )
@@ -201,9 +200,9 @@ class TestQualityFilterMaxAge:
     def test_combined_score_and_age_filter(self):
         proc = QualityFilterProcessor(min_score=0.5, max_age_days=30)
         chunks = [
-            _chunk("good",        score=0.8, published_date=_days_ago(5)),
-            _chunk("low_score",   score=0.3, published_date=_days_ago(5)),
-            _chunk("stale",       score=0.9, published_date=_days_ago(60)),
+            _chunk("good", score=0.8, published_date=_days_ago(5)),
+            _chunk("low_score", score=0.3, published_date=_days_ago(5)),
+            _chunk("stale", score=0.9, published_date=_days_ago(60)),
         ]
         out = proc.process(chunks, [], _ctx())
         assert len(out) == 1

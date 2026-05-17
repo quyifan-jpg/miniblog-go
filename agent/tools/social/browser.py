@@ -1,8 +1,10 @@
 import os
+from contextlib import contextmanager
+
 from playwright.sync_api import sync_playwright
+
 from tools.social.config import USER_DATA_DIR
 from tools.social.profile_lock import social_browser_profile_lock
-from contextlib import contextmanager
 
 
 def setup_session(TARGET_SITE):
@@ -22,7 +24,7 @@ def setup_session(TARGET_SITE):
                     page = browser_context.pages[0]
                 else:
                     page = browser_context.new_page()
-                page.goto(TARGET_SITE) 
+                page.goto(TARGET_SITE)
                 print("\n✅ Browser is now open. Please:")
                 print("1. Log in to your account manually")
                 print("2. Navigate through the site as needed")
@@ -70,7 +72,10 @@ def setup_session_multi(TARGET_SITES):
                     while True:
                         pages[0].wait_for_timeout(1000)
                 except KeyboardInterrupt:
-                    print(f"\n🔑 Sessions saved for all {len(TARGET_SITES)} sites! " "You can now run monitoring tasks with these sessions.")
+                    print(
+                        f"\n🔑 Sessions saved for all {len(TARGET_SITES)} sites! "
+                        "You can now run monitoring tasks with these sessions."
+                    )
             finally:
                 browser_context.close()
 

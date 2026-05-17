@@ -14,19 +14,21 @@ so the shim is captured cleanly in each closure.
 from __future__ import annotations
 
 import json
+
 from langchain_core.tools import tool
 
-# ── Agno-convention tools (first arg = agent) ────────────────────────────────
-from tools.wikipedia_search import wikipedia_search
-from tools.jikan_search import jikan_search
-from tools.embedding_search import embedding_search
 from tools.chunk_search import chunk_search
-from tools.social_media_search import social_media_search, social_media_trending_search
-from tools.search_articles import search_articles
-from tools.web_search import run_browser_search
+from tools.embedding_search import embedding_search
 
 # ── Plain tool (no agent arg) ────────────────────────────────────────────────
 from tools.google_news_discovery import google_news_discovery_run
+from tools.jikan_search import jikan_search
+from tools.search_articles import search_articles
+from tools.social_media_search import social_media_search, social_media_trending_search
+from tools.web_search import run_browser_search
+
+# ── Agno-convention tools (first arg = agent) ────────────────────────────────
+from tools.wikipedia_search import wikipedia_search
 
 
 class _AgentShim:
@@ -34,6 +36,7 @@ class _AgentShim:
     Minimal shim that satisfies `agent.session_id` for existing tools.
     No other Agent methods are used by the search/scrape tools.
     """
+
     def __init__(self, session_id: str) -> None:
         self.session_id = session_id
 
@@ -78,6 +81,7 @@ def make_search_tools(session_id: str) -> list:
     def search_duckduckgo(query: str) -> str:
         """Search the web using DuckDuckGo for general information about a topic."""
         from duckduckgo_search import DDGS
+
         try:
             with DDGS() as ddgs:
                 raw = list(ddgs.text(query, max_results=8))
@@ -92,7 +96,8 @@ def make_search_tools(session_id: str) -> list:
                     "published_date": "",
                     "is_scrapping_required": True,
                 }
-                for r in raw if r.get("href")
+                for r in raw
+                if r.get("href")
             ]
             return f"is_scrapping_required: True, results: {json.dumps(normalized)}"
         except Exception as exc:
@@ -141,7 +146,7 @@ def make_search_tools(session_id: str) -> list:
         return run_browser_search(shim, instruction)
 
     return [
-        search_chunks,           # always first per instructions
+        search_chunks,  # always first per instructions
         search_embeddings,
         search_google_news,
         search_duckduckgo,
@@ -150,5 +155,5 @@ def make_search_tools(session_id: str) -> list:
         search_social_media_posts,
         get_social_media_trending,
         search_articles_db,
-        search_with_browser,     # always last (expensive)
+        search_with_browser,  # always last (expensive)
     ]
