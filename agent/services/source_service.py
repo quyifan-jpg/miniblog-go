@@ -1,8 +1,10 @@
-from typing import List, Optional, Dict, Any
-from fastapi import HTTPException
 from datetime import datetime
+from typing import Any
+
+from fastapi import HTTPException
+
+from models.source_schemas import PaginatedSources, SourceCreate, SourceFeedCreate, SourceUpdate
 from services.db_service import sources_db, tracking_db
-from models.source_schemas import SourceCreate, SourceUpdate, SourceFeedCreate, PaginatedSources
 
 
 class SourceService:
@@ -15,11 +17,20 @@ class SourceService:
         return value
 
     async def get_sources(
-        self, page: int = 1, per_page: int = 10, category: Optional[str] = None, search: Optional[str] = None, include_inactive: bool = False
+        self,
+        page: int = 1,
+        per_page: int = 10,
+        category: str | None = None,
+        search: str | None = None,
+        include_inactive: bool = False,
     ) -> PaginatedSources:
         """Get sources with pagination and filtering."""
         try:
-            query_parts = ["SELECT s.id, s.name, s.url, s.description, s.is_active, s.created_at", "FROM sources s", "WHERE 1=1"]
+            query_parts = [
+                "SELECT s.id, s.name, s.url, s.description, s.is_active, s.created_at",
+                "FROM sources s",
+                "WHERE 1=1",
+            ]
             query_params = []
             if not include_inactive:
                 query_parts.append("AND s.is_active = 1")
@@ -36,7 +47,9 @@ class SourceService:
                 query_parts.append("AND (s.name LIKE ? OR s.description LIKE ?)")
                 search_param = f"%{search}%"
                 query_params.extend([search_param, search_param])
-            count_query = " ".join(query_parts).replace("SELECT s.id, s.name, s.url, s.description, s.is_active, s.created_at", "SELECT COUNT(*)")
+            count_query = " ".join(query_parts).replace(
+                "SELECT s.id, s.name, s.url, s.description, s.is_active, s.created_at", "SELECT COUNT(*)"
+            )
             total_sources = await sources_db.execute_query(count_query, tuple(query_params), fetch=True, fetch_one=True)
             total_count = total_sources.get("COUNT(*)", 0) if total_sources else 0
             query_parts.append("ORDER BY s.name")
@@ -56,14 +69,20 @@ class SourceService:
             has_next = page < total_pages
             has_prev = page > 1
             return PaginatedSources(
-                items=sources, total=total_count, page=page, per_page=per_page, total_pages=total_pages, has_next=has_next, has_prev=has_prev
+                items=sources,
+                total=total_count,
+                page=page,
+                per_page=per_page,
+                total_pages=total_pages,
+                has_next=has_next,
+                has_prev=has_prev,
             )
         except Exception as e:
             if isinstance(e, HTTPException):
                 raise e
             raise HTTPException(status_code=500, detail=f"Error fetching sources: {str(e)}")
 
-    async def get_source(self, source_id: int) -> Dict[str, Any]:
+    async def get_source(self, source_id: int) -> dict[str, Any]:
         """Get a specific source by ID."""
         query = """
         SELECT id, name, url, description, is_active, created_at
@@ -81,7 +100,7 @@ class SourceService:
             source["category"] = source["categories"][0] if source["categories"] else ""
         return source
 
-    async def get_source_categories(self, source_id: int) -> List[str]:
+    async def get_source_categories(self, source_id: int) -> list[str]:
         """Get all categories for a specific source."""
         query = """
         SELECT c.name
@@ -93,7 +112,7 @@ class SourceService:
         categories = await sources_db.execute_query(query, (source_id,), fetch=True)
         return [category.get("name", "") for category in categories if category.get("name")]
 
-    async def get_source_last_crawled(self, source_id: int) -> Optional[str]:
+    async def get_source_last_crawled(self, source_id: int) -> str | None:
         """Get the last crawl time for a source's feeds."""
         query = """
         SELECT MAX(ft.last_processed) as last_crawled
@@ -103,7 +122,7 @@ class SourceService:
         result = await tracking_db.execute_query(query, (source_id,), fetch=True, fetch_one=True)
         return self._normalize_dt(result.get("last_crawled")) if result else None
 
-    async def get_source_by_name(self, name: str) -> Dict[str, Any]:
+    async def get_source_by_name(self, name: str) -> dict[str, Any]:
         """Get a specific source by name."""
         query = """
         SELECT id, name, url, description, is_active, created_at
@@ -121,7 +140,7 @@ class SourceService:
             source["category"] = source["categories"][0] if source["categories"] else ""
         return source
 
-    async def get_source_feeds(self, source_id: int) -> List[Dict[str, Any]]:
+    async def get_source_feeds(self, source_id: int) -> list[dict[str, Any]]:
         """Get all feeds for a specific source."""
         query = """
         SELECT id, feed_url, feed_type, is_active, created_at, last_crawled
@@ -136,7 +155,7 @@ class SourceService:
             feed["description"] = feed.get("feed_type", "Main feed").capitalize()
         return feeds
 
-    async def get_categories(self) -> List[Dict[str, Any]]:
+    async def get_categories(self) -> list[dict[str, Any]]:
         """Get all source categories."""
         query = """
         SELECT id, name
@@ -148,7 +167,7 @@ class SourceService:
             category["description"] = f"Articles about {category.get('name', '')}"
         return categories
 
-    async def get_source_by_category(self, category_name: str) -> List[Dict[str, Any]]:
+    async def get_source_by_category(self, category_name: str) -> list[dict[str, Any]]:
         """Get sources by category using the junction table."""
         query = """
         SELECT s.id, s.name, s.url, s.description, s.is_active
@@ -166,14 +185,20 @@ class SourceService:
                 source["category"] = source["categories"][0] if source["categories"] else ""
         return sources
 
-    async def create_source(self, source_data: SourceCreate) -> Dict[str, Any]:
+    async def create_source(self, source_data: SourceCreate) -> dict[str, Any]:
         """Create a new source."""
         try:
             source_query = """
             INSERT INTO sources (name, url, description, is_active, created_at)
             VALUES (?, ?, ?, ?, ?)
             """
-            source_params = (source_data.name, source_data.url, source_data.description, source_data.is_active, datetime.now().isoformat())
+            source_params = (
+                source_data.name,
+                source_data.url,
+                source_data.description,
+                source_data.is_active,
+                datetime.now().isoformat(),
+            )
             source_id = await sources_db.execute_query(source_query, source_params)
             if source_data.categories:
                 for category_name in source_data.categories:
@@ -208,7 +233,7 @@ class SourceService:
         """
         await sources_db.execute_query(link_query, (source_id, category["id"]))
 
-    async def update_source(self, source_id: int, source_data: SourceUpdate) -> Dict[str, Any]:
+    async def update_source(self, source_id: int, source_data: SourceUpdate) -> dict[str, Any]:
         """Update an existing source."""
         try:
             await self.get_source(source_id)
@@ -253,7 +278,7 @@ class SourceService:
                 raise HTTPException(status_code=409, detail="Source with this name already exists")
             raise HTTPException(status_code=500, detail=f"Error updating source: {str(e)}")
 
-    async def delete_source(self, source_id: int) -> Dict[str, Any]:
+    async def delete_source(self, source_id: int) -> dict[str, Any]:
         """Delete a source (soft delete by setting is_active to false)."""
         try:
             source = await self.get_source(source_id)
@@ -275,7 +300,7 @@ class SourceService:
                 raise e
             raise HTTPException(status_code=500, detail=f"Error deleting source: {str(e)}")
 
-    async def hard_delete_source(self, source_id: int) -> Dict[str, str]:
+    async def hard_delete_source(self, source_id: int) -> dict[str, str]:
         """Permanently delete a source and its feeds."""
         try:
             source = await self.get_source(source_id)
@@ -300,19 +325,23 @@ class SourceService:
                 raise e
             raise HTTPException(status_code=500, detail=f"Error deleting source: {str(e)}")
 
-    async def add_feed_to_source(self, source_id: int, feed_data: SourceFeedCreate) -> Dict[str, Any]:
+    async def add_feed_to_source(self, source_id: int, feed_data: SourceFeedCreate) -> dict[str, Any]:
         """Add a new feed to an existing source."""
         try:
             await self.get_source(source_id)
             check_query = """
             SELECT id, source_id FROM source_feeds WHERE feed_url = ?
             """
-            existing_feed = await sources_db.execute_query(check_query, (feed_data.feed_url,), fetch=True, fetch_one=True)
+            existing_feed = await sources_db.execute_query(
+                check_query, (feed_data.feed_url,), fetch=True, fetch_one=True
+            )
             if existing_feed:
                 source_query = """
                 SELECT name FROM sources WHERE id = ?
                 """
-                source = await sources_db.execute_query(source_query, (existing_feed["source_id"],), fetch=True, fetch_one=True)
+                source = await sources_db.execute_query(
+                    source_query, (existing_feed["source_id"],), fetch=True, fetch_one=True
+                )
                 source_name = source["name"] if source else "another source"
                 raise HTTPException(
                     status_code=409,
@@ -322,17 +351,26 @@ class SourceService:
             INSERT INTO source_feeds (source_id, feed_url, feed_type, is_active, created_at)
             VALUES (?, ?, ?, ?, ?)
             """
-            feed_params = (source_id, feed_data.feed_url, feed_data.feed_type, feed_data.is_active, datetime.now().isoformat())
+            feed_params = (
+                source_id,
+                feed_data.feed_url,
+                feed_data.feed_type,
+                feed_data.is_active,
+                datetime.now().isoformat(),
+            )
             await sources_db.execute_query(feed_query, feed_params)
             return await self.get_source_feeds(source_id)
         except Exception as e:
             if isinstance(e, HTTPException):
                 raise e
             if "UNIQUE constraint failed" in str(e) and "feed_url" in str(e):
-                raise HTTPException(status_code=409, detail="This feed URL already exists. Please check your existing feeds or try a different URL.")
+                raise HTTPException(
+                    status_code=409,
+                    detail="This feed URL already exists. Please check your existing feeds or try a different URL.",
+                )
             raise HTTPException(status_code=500, detail=f"Error adding feed: {str(e)}")
 
-    async def update_feed(self, feed_id: int, feed_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def update_feed(self, feed_id: int, feed_data: dict[str, Any]) -> dict[str, Any]:
         """Update an existing feed."""
         try:
             feed_query = "SELECT id, source_id FROM source_feeds WHERE id = ?"
@@ -367,7 +405,7 @@ class SourceService:
                 raise HTTPException(status_code=409, detail="Feed URL already exists")
             raise HTTPException(status_code=500, detail=f"Error updating feed: {str(e)}")
 
-    async def delete_feed(self, feed_id: int) -> Dict[str, str]:
+    async def delete_feed(self, feed_id: int) -> dict[str, str]:
         """Delete a feed."""
         try:
             feed_query = "SELECT * FROM source_feeds WHERE id = ?"

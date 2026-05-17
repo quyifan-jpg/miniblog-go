@@ -1,24 +1,23 @@
 from pydantic import BaseModel, Field
-from typing import Optional
 
 
 class PodcastConfigBase(BaseModel):
     name: str
     prompt: str
-    description: Optional[str] = None
+    description: str | None = None
     time_range_hours: int = Field(24, ge=1, le=168)
     limit_articles: int = Field(20, ge=5, le=50)
     is_active: bool = True
     tts_engine: str = "kokoro"
     language_code: str = "en"
-    podcast_script_prompt: Optional[str] = None
-    image_prompt: Optional[str] = None
+    podcast_script_prompt: str | None = None
+    image_prompt: str | None = None
 
 
 class PodcastConfig(PodcastConfigBase):
     id: int
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: str | None = None
+    updated_at: str | None = None
 
     class Config:
         from_attributes = True
@@ -29,13 +28,13 @@ class PodcastConfigCreate(PodcastConfigBase):
 
 
 class PodcastConfigUpdate(BaseModel):
-    name: Optional[str] = None
-    prompt: Optional[str] = None
-    description: Optional[str] = None
-    time_range_hours: Optional[int] = Field(None, ge=1, le=168)
-    limit_articles: Optional[int] = Field(None, ge=5, le=50)
-    is_active: Optional[bool] = None
-    tts_engine: Optional[str] = None
-    language_code: Optional[str] = None
-    podcast_script_prompt: Optional[str] = None
-    image_prompt: Optional[str] = None
+    name: str | None = None
+    prompt: str | None = None
+    description: str | None = None
+    time_range_hours: int | None = Field(None, ge=1, le=168)
+    limit_articles: int | None = Field(None, ge=5, le=50)
+    is_active: bool | None = None
+    tts_engine: str | None = None
+    language_code: str | None = None
+    podcast_script_prompt: str | None = None
+    image_prompt: str | None = None

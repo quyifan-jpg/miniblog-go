@@ -1,5 +1,6 @@
 import json
 import os
+
 from agno.storage.singlestore import SingleStoreStorage
 
 AGENT_MODEL = "gpt-4o"
@@ -166,6 +167,7 @@ INITIAL_SESSION_STATE = {
     "show_audio_for_confirmation": False,
 }
 
+
 def _get_mysql_db_url() -> str:
     db_url = os.environ.get("DATABASE_URL", "")
     if not db_url.startswith(("mysql://", "mysql+pymysql://")):
@@ -178,6 +180,7 @@ def _get_mysql_db_url() -> str:
 def _get_mysql_db_name() -> str:
     """Extract database name from DATABASE_URL for use as agno storage schema."""
     from urllib.parse import urlparse
+
     db_url = os.environ.get("DATABASE_URL", "")
     return urlparse(db_url).path.lstrip("/")
 

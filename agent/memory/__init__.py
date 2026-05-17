@@ -14,7 +14,7 @@ Integration point: celery_tasks.py → agent_chat() calls
 MemoryManager.prepare_context() before Agent creation.
 """
 
-from memory.manager import MemoryManager
 from memory.config import memory_settings
+from memory.manager import MemoryManager
 
 __all__ = ["MemoryManager", "memory_settings"]

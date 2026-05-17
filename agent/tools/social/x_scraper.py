@@ -1,8 +1,9 @@
 import time
+
 from tools.social.browser import create_browser_context
-from tools.social.x_post_extractor import x_post_extractor
+from tools.social.db import check_and_store_post, create_connection, setup_database, update_posts_with_analysis
 from tools.social.x_agent import analyze_posts_sentiment
-from tools.social.db import create_connection, setup_database, check_and_store_post, update_posts_with_analysis
+from tools.social.x_post_extractor import x_post_extractor
 
 
 def crawl_x_profile(profile_url, db_file="x_posts.db"):
@@ -35,7 +36,7 @@ def crawl_x_profile(profile_url, db_file="x_posts.db"):
                         try:
                             show_more.click()
                             time.sleep(1)
-                        except Exception as e:
+                        except Exception:
                             pass
 
                     tweet_html = article.evaluate("(element) => element.outerHTML")

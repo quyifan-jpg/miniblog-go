@@ -1,19 +1,20 @@
-import os
 import asyncio
-from typing import List
-from pydantic import BaseModel, Field
-from browser_use import Agent as BrowserAgent, Controller, BrowserSession, BrowserProfile
-from langchain_openai import ChatOpenAI
-from dotenv import load_dotenv
-from agno.agent import Agent
-
-
 import json
+import os
+
+from agno.agent import Agent
+from browser_use import Agent as BrowserAgent
+from browser_use import BrowserProfile, BrowserSession, Controller
+from dotenv import load_dotenv
+from langchain_openai import ChatOpenAI
+from pydantic import BaseModel, Field
 
 load_dotenv()
 
 BROWSER_AGENT_MODEL = "gpt-4o"
-USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+)
 MAX_STEPS = 15
 MAX_ACTIONS_PER_STEP = 5
 USER_DATA_DIR = "browsers/playwright_persistent_profile_web"
@@ -26,7 +27,7 @@ class WebSearchResult(BaseModel):
 
 
 class WebSearchResults(BaseModel):
-    results: List[WebSearchResult] = Field(..., description="List of search results")
+    results: list[WebSearchResult] = Field(..., description="List of search results")
 
 
 def run_browser_search(agent: Agent, instruction: str) -> str:
@@ -47,7 +48,10 @@ def run_browser_search(agent: Agent, instruction: str) -> str:
 
         headless = True
         browser_profile = BrowserProfile(
-            user_data_dir=USER_DATA_DIR, headless=headless, viewport={"width": 1280, "height": 800}, record_video_dir=recordings_dir,
+            user_data_dir=USER_DATA_DIR,
+            headless=headless,
+            viewport={"width": 1280, "height": 800},
+            record_video_dir=recordings_dir,
             downloads_path="podcasts/browseruse_downloads",
         )
 
@@ -80,7 +84,8 @@ def run_browser_search(agent: Agent, instruction: str) -> str:
         if result:
             parsed: WebSearchResults = WebSearchResults.model_validate_json(result)
             results_list = [
-                {"title": post.title, "url": post.url, "description": post.content, "is_scrapping_required": False} for post in parsed.results
+                {"title": post.title, "url": post.url, "description": post.content, "is_scrapping_required": False}
+                for post in parsed.results
             ]
             return f"is_scrapping_required: False, results: {json.dumps(results_list)}"
         else:

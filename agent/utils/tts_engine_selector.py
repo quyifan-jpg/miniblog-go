@@ -1,5 +1,7 @@
 import os
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
+
 from utils.load_api_keys import load_api_key
 
 _TTS_ENGINES = {}
@@ -12,8 +14,13 @@ def register_tts_engine(name: str, generator_func: Callable):
 
 
 def generate_podcast_audio(
-    script: Any, output_path: str, tts_engine: str = "kokoro", language_code: str = "en", silence_duration: float = 0.7, voice_map=None
-) -> Optional[str]:
+    script: Any,
+    output_path: str,
+    tts_engine: str = "kokoro",
+    language_code: str = "en",
+    silence_duration: float = 0.7,
+    voice_map=None,
+) -> str | None:
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     engine_name = tts_engine.lower()
     if engine_name not in _TTS_ENGINES:
@@ -21,7 +28,11 @@ def generate_podcast_audio(
         return None
     try:
         return _TTS_ENGINES[engine_name](
-            script=script, output_path=output_path, language_code=language_code, silence_duration=silence_duration, voice_map=voice_map
+            script=script,
+            output_path=output_path,
+            language_code=language_code,
+            silence_duration=silence_duration,
+            voice_map=voice_map,
         )
     except Exception as e:
         import traceback
@@ -55,7 +66,11 @@ def register_default_engines():
         if language_code == "hi":
             kokoro_lang_code = "h"
         return kokoro_create_podcast(
-            script=script, output_path=output_path, silence_duration=silence_duration, sampling_rate=24_000, lang_code=kokoro_lang_code
+            script=script,
+            output_path=output_path,
+            silence_duration=silence_duration,
+            sampling_rate=24_000,
+            lang_code=kokoro_lang_code,
         )
 
     def openai_generator(script, output_path, language_code, silence_duration, voice_map):

@@ -24,8 +24,7 @@ highly relevant content is never completely suppressed.
 from __future__ import annotations
 
 import math
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from loguru import logger
 
@@ -40,16 +39,16 @@ _PARSE_FORMATS = [
 ]
 
 
-def _parse_date(raw: object) -> Optional[datetime]:
+def _parse_date(raw: object) -> datetime | None:
     """Parse a published_date value into an aware datetime (UTC)."""
     if isinstance(raw, datetime):
-        return raw if raw.tzinfo else raw.replace(tzinfo=timezone.utc)
+        return raw if raw.tzinfo else raw.replace(tzinfo=UTC)
     if not isinstance(raw, str) or not raw.strip():
         return None
     for fmt in _PARSE_FORMATS:
         try:
             dt = datetime.strptime(raw.strip(), fmt)
-            return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+            return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
         except ValueError:
             continue
     return None
@@ -76,7 +75,7 @@ class FreshnessBoostProcessor(PostProcessor):
     ):
         if half_life_days <= 0:
             raise ValueError("half_life_days must be positive")
-        self._lambda = math.log(2) / half_life_days   # decay constant
+        self._lambda = math.log(2) / half_life_days  # decay constant
         self._floor = max(0.0, min(floor_multiplier, 1.0))
         self._enabled_flag = enabled
 
@@ -95,7 +94,7 @@ class FreshnessBoostProcessor(PostProcessor):
         if not chunks:
             return []
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         boosted = 0
         skipped_no_date = 0
 
@@ -116,8 +115,7 @@ class FreshnessBoostProcessor(PostProcessor):
             boosted += 1
 
         logger.debug(
-            "FreshnessBoost: adjusted {b}/{t} chunks "
-            "({s} had no date, half_life={hl}d)",
+            "FreshnessBoost: adjusted {b}/{t} chunks ({s} had no date, half_life={hl}d)",
             b=boosted,
             t=len(chunks),
             s=skipped_no_date,

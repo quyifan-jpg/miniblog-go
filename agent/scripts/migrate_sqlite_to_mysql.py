@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 import os
-import sys
 import sqlite3
+import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from db.connection import db_connection
 from db.config import DEFAULT_DB_PATHS
+from db.connection import db_connection
 from services.mysql_init import init_mysql_schema
-
 
 TABLES_TO_COPY = [
     ("sources_db", ["sources", "categories", "source_categories", "source_feeds"]),

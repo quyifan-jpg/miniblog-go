@@ -1,13 +1,12 @@
-from fastapi import APIRouter, Query, Path, Body, status
-from typing import List
+from fastapi import APIRouter, Body, Path, Query, status
+
 from models.podcast_config_schemas import PodcastConfig, PodcastConfigCreate, PodcastConfigUpdate
 from services.podcast_config_service import podcast_config_service
-
 
 router = APIRouter()
 
 
-@router.get("/", response_model=List[PodcastConfig])
+@router.get("/", response_model=list[PodcastConfig])
 async def get_podcast_configs(
     active_only: bool = Query(False, description="Include only active podcast configs"),
 ):

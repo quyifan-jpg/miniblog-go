@@ -1,7 +1,8 @@
-from pydantic import BaseModel, validator
-from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
 from enum import Enum
+from typing import Any
+
+from pydantic import BaseModel, validator
 
 
 class TaskType(str, Enum):
@@ -21,7 +22,11 @@ TASK_TYPES = {
         "command": "python -m processors.feed_processor",
         "description": "Processes RSS feeds and stores new entries",
     },
-    "url_crawler": {"name": "URL Crawler", "command": "python -m processors.url_processor", "description": "Crawls URLs and extracts content"},
+    "url_crawler": {
+        "name": "URL Crawler",
+        "command": "python -m processors.url_processor",
+        "description": "Crawls URLs and extracts content",
+    },
     "ai_analyzer": {
         "name": "AI Analyzer",
         "command": "python -m processors.ai_analysis_processor",
@@ -60,7 +65,7 @@ class TaskBase(BaseModel):
     task_type: TaskType
     frequency: int
     frequency_unit: str
-    description: Optional[str] = None
+    description: str | None = None
     enabled: bool = True
 
     @validator("task_type")
@@ -73,8 +78,8 @@ class TaskBase(BaseModel):
 class Task(TaskBase):
     id: int
     command: str
-    last_run: Optional[Union[str, datetime]] = None
-    created_at: Optional[Union[str, datetime]] = None
+    last_run: str | datetime | None = None
+    created_at: str | datetime | None = None
 
     class Config:
         from_attributes = True
@@ -85,27 +90,27 @@ class TaskCreate(TaskBase):
 
 
 class TaskUpdate(BaseModel):
-    name: Optional[str] = None
-    task_type: Optional[TaskType] = None
-    frequency: Optional[int] = None
-    frequency_unit: Optional[str] = None
-    description: Optional[str] = None
-    enabled: Optional[bool] = None
+    name: str | None = None
+    task_type: TaskType | None = None
+    frequency: int | None = None
+    frequency_unit: str | None = None
+    description: str | None = None
+    enabled: bool | None = None
 
 
 class TaskExecution(BaseModel):
     id: int
     task_id: int
-    task_name: Optional[str] = None
-    start_time: Union[str, datetime]
-    end_time: Optional[Union[str, datetime]] = None
+    task_name: str | None = None
+    start_time: str | datetime
+    end_time: str | datetime | None = None
     status: str
-    error_message: Optional[str] = None
-    output: Optional[str] = None
+    error_message: str | None = None
+    output: str | None = None
 
 
 class PaginatedTaskExecutions(BaseModel):
-    items: List[TaskExecution]
+    items: list[TaskExecution]
     total: int
     page: int
     per_page: int
@@ -115,5 +120,5 @@ class PaginatedTaskExecutions(BaseModel):
 
 
 class TaskStats(BaseModel):
-    tasks: Dict[str, int]
-    executions: Dict[str, Any]
+    tasks: dict[str, int]
+    executions: dict[str, Any]

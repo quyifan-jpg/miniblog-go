@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 env_path = Path(".") / ".env"
@@ -55,8 +56,10 @@ def get_social_media_db_path():
 def get_browser_session_path():
     return "browsers/playwright_persistent_profile"
 
+
 def get_slack_sessions_db_path():
     return get_db_path("slack_sessions_db")
+
 
 DB_PATH = "databases"
 PODCAST_DIR = "podcasts"

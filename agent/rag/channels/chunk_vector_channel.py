@@ -16,10 +16,9 @@ from loguru import logger
 from rag.channels.base import SearchChannel
 from rag.models import ChannelResult, ChannelType, MetadataKey, RetrievedChunk, SearchContext
 
-
 # ── Defaults ──────────────────────────────────────────────────────────
-EMBEDDING_MODEL        = "text-embedding-3-small"
-MIN_SIMILARITY         = 0.22   # IP score threshold; post-processors filter further
+EMBEDDING_MODEL = "text-embedding-3-small"
+MIN_SIMILARITY = 0.22  # IP score threshold; post-processors filter further
 MAX_CHUNKS_PER_ARTICLE = 3
 
 
@@ -52,6 +51,7 @@ class ChunkVectorChannel(SearchChannel):
     def is_enabled(self, context: SearchContext) -> bool:
         try:
             from db.milvus import get_milvus
+
             get_milvus()
             return True
         except Exception as e:
@@ -77,7 +77,7 @@ class ChunkVectorChannel(SearchChannel):
         from db.milvus import get_milvus
 
         try:
-            mv   = get_milvus()
+            mv = get_milvus()
             hits = mv.search_chunks(query_embedding, top_k=top_k)
         except Exception as e:
             logger.error("Milvus chunk search failed: {e}", e=e)
@@ -91,7 +91,7 @@ class ChunkVectorChannel(SearchChannel):
         # 4. Fetch article metadata (published_date, source_id) from MySQL
         from db.config import get_tracking_db_path
 
-        db_path     = get_tracking_db_path()
+        db_path = get_tracking_db_path()
         article_ids = list({h["article_id"] for h in hits})
         article_map = self._fetch_articles(db_path, article_ids)
 
@@ -114,6 +114,7 @@ class ChunkVectorChannel(SearchChannel):
 
     def _generate_embedding(self, query: str) -> list[float] | None:
         from openai import OpenAI
+
         from utils.load_api_keys import load_api_key
 
         api_key = load_api_key("OPENAI_API_KEY")
@@ -135,8 +136,7 @@ class ChunkVectorChannel(SearchChannel):
         placeholders = ",".join(["%s"] * len(article_ids))
         rows = execute_query(
             db_path,
-            f"SELECT id, title, url, published_date, source_id "
-            f"FROM crawled_articles WHERE id IN ({placeholders})",
+            f"SELECT id, title, url, published_date, source_id FROM crawled_articles WHERE id IN ({placeholders})",
             article_ids,
             fetch=True,
         )
@@ -160,26 +160,28 @@ class ChunkVectorChannel(SearchChannel):
         for article_id, chunk_hits in by_article.items():
             chunk_hits.sort(key=lambda h: h["chunk_index"])
             best_score = max(h["score"] for h in chunk_hits)
-            passages   = "\n\n---\n\n".join(h["chunk_text"] for h in chunk_hits)
+            passages = "\n\n---\n\n".join(h["chunk_text"] for h in chunk_hits)
 
             # Milvus hit carries title+url; MySQL map carries published_date+source_id
             article_meta = article_map.get(article_id, {})
-            title        = chunk_hits[0].get("title") or article_meta.get("title", "Untitled")
-            url          = chunk_hits[0].get("url")   or article_meta.get("url", "")
+            title = chunk_hits[0].get("title") or article_meta.get("title", "Untitled")
+            url = chunk_hits[0].get("url") or article_meta.get("url", "")
 
-            results.append(RetrievedChunk(
-                id=str(article_id),
-                content=passages,
-                title=title,
-                url=url,
-                score=float(best_score),
-                source_channel=ChannelType.CHUNK_VECTOR,
-                metadata={
-                    MetadataKey.PUBLISHED_DATE: article.get("published_date", ""),
-                    MetadataKey.SOURCE_ID:      str(article.get("source_id", "")),
-                    MetadataKey.CHUNKS_USED:    len(chunk_sims),
-                },
-            ))
+            results.append(
+                RetrievedChunk(
+                    id=str(article_id),
+                    content=passages,
+                    title=title,
+                    url=url,
+                    score=float(best_score),
+                    source_channel=ChannelType.CHUNK_VECTOR,
+                    metadata={
+                        MetadataKey.PUBLISHED_DATE: article.get("published_date", ""),
+                        MetadataKey.SOURCE_ID: str(article.get("source_id", "")),
+                        MetadataKey.CHUNKS_USED: len(chunk_sims),
+                    },
+                )
+            )
 
         results.sort(key=lambda x: x.score, reverse=True)
         return results

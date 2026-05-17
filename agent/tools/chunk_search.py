@@ -15,11 +15,11 @@ from db.connection import execute_query
 from db.milvus import get_milvus
 from utils.load_api_keys import load_api_key
 
-EMBEDDING_MODEL      = "text-embedding-3-small"
-TOP_K                = 30    # chunks to retrieve from Milvus
-MAX_CHUNKS_PER_ARTICLE = 3   # keep at most N chunks per article
-MIN_SIMILARITY       = 0.25  # IP score threshold (chunks have lower avg similarity than full articles)
-FINAL_TOP_K          = 8     # articles to return
+EMBEDDING_MODEL = "text-embedding-3-small"
+TOP_K = 30  # chunks to retrieve from Milvus
+MAX_CHUNKS_PER_ARTICLE = 3  # keep at most N chunks per article
+MIN_SIMILARITY = 0.25  # IP score threshold (chunks have lower avg similarity than full articles)
+FINAL_TOP_K = 8  # articles to return
 
 
 def _generate_query_embedding(query: str) -> list[float] | None:
@@ -64,22 +64,24 @@ def _group_and_rerank(hits: list[dict], meta_map: dict[int, dict]) -> list[dict]
         # Sort by chunk_index for readability
         chunk_hits.sort(key=lambda h: h["chunk_index"])
         best_score = max(h["score"] for h in chunk_hits)
-        passages   = "\n\n---\n\n".join(h["chunk_text"] for h in chunk_hits)
-        meta       = meta_map.get(aid, {})
+        passages = "\n\n---\n\n".join(h["chunk_text"] for h in chunk_hits)
+        meta = meta_map.get(aid, {})
 
-        results.append({
-            "id":             aid,
-            "title":          chunk_hits[0].get("title", "Untitled"),
-            "url":            chunk_hits[0].get("url", ""),
-            "published_date": str(meta.get("published_date", "")),
-            "source_id":      str(meta.get("source_id", "")),
-            "full_text":      passages,
-            "description":    passages,
-            "similarity":     round(best_score, 3),
-            "chunks_used":    len(chunk_hits),
-            "is_scrapping_required": False,
-            "categories":     ["chunk-semantic"],
-        })
+        results.append(
+            {
+                "id": aid,
+                "title": chunk_hits[0].get("title", "Untitled"),
+                "url": chunk_hits[0].get("url", ""),
+                "published_date": str(meta.get("published_date", "")),
+                "source_id": str(meta.get("source_id", "")),
+                "full_text": passages,
+                "description": passages,
+                "similarity": round(best_score, 3),
+                "chunks_used": len(chunk_hits),
+                "is_scrapping_required": False,
+                "categories": ["chunk-semantic"],
+            }
+        )
 
     results.sort(key=lambda x: x["similarity"], reverse=True)
     return results[:FINAL_TOP_K]
@@ -107,7 +109,7 @@ def chunk_search(agent: Agent, prompt: str) -> str:
         return "Chunk search unavailable: could not generate query embedding."
 
     try:
-        mv   = get_milvus()
+        mv = get_milvus()
         hits = mv.search_chunks(query_embedding, top_k=TOP_K)
     except Exception as e:
         return f"Chunk search unavailable: {e}. Continuing with other search methods."
@@ -125,8 +127,8 @@ def chunk_search(agent: Agent, prompt: str) -> str:
 
     # Enrich with MySQL metadata (published_date, source_id)
     article_ids = list({h["article_id"] for h in hits})
-    db_path     = get_tracking_db_path()
-    meta_map    = _get_article_metadata(db_path, article_ids)
+    db_path = get_tracking_db_path()
+    meta_map = _get_article_metadata(db_path, article_ids)
 
     results = _group_and_rerank(hits, meta_map)
     print(f"[chunk_search] ④ Returning {len(results)} articles")

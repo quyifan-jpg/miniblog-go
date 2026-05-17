@@ -25,21 +25,21 @@ from __future__ import annotations
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, List, Optional
+from typing import Any
 
 from loguru import logger
 
 from decorators.circuit_breaker import (
     CircuitBreaker,
     CircuitState,
-    openai_breaker,
     anthropic_breaker,
+    openai_breaker,
 )
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Strategy interface
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class ModelProvider(ABC):
     """Abstract strategy: knows how to create a chat model for a specific vendor."""
@@ -71,8 +71,8 @@ class ModelProvider(ABC):
 # Concrete strategies
 # ═══════════════════════════════════════════════════════════════════════════════
 
-class OpenAIProvider(ModelProvider):
 
+class OpenAIProvider(ModelProvider):
     def __init__(self, model_id: str = "gpt-4o-mini") -> None:
         self._model_id = model_id
 
@@ -105,7 +105,6 @@ class OpenAIProvider(ModelProvider):
 
 
 class AnthropicProvider(ModelProvider):
-
     def __init__(self, model_id: str = "claude-sonnet-4-20250514") -> None:
         self._model_id = model_id
 
@@ -141,6 +140,7 @@ class AnthropicProvider(ModelProvider):
 # Context — the router
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 @dataclass
 class ModelRouter:
     """
@@ -150,7 +150,7 @@ class ModelRouter:
     candidate and lets the request through anyway (last resort).
     """
 
-    candidates: List[ModelProvider] = field(default_factory=list)
+    candidates: list[ModelProvider] = field(default_factory=list)
 
     def _select(self) -> ModelProvider:
         for provider in self.candidates:
@@ -181,7 +181,7 @@ class ModelRouter:
         return self._select()
 
     @property
-    def status(self) -> List[dict]:
+    def status(self) -> list[dict]:
         """Health snapshot of all candidates (for monitoring/debugging)."""
         return [
             {

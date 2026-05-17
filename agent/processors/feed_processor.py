@@ -1,15 +1,16 @@
-import time
 import random
-from utils.rss_feed_parser import get_feed_data
+import time
+
 from db.config import get_sources_db_path, get_tracking_db_path
 from db.feeds import (
-    get_active_feeds,
     count_active_feeds,
+    get_active_feeds,
     get_feed_tracking_info,
-    update_feed_tracking,
     store_feed_entries,
+    update_feed_tracking,
     update_tracking_info,
 )
+from utils.rss_feed_parser import get_feed_data
 
 
 def fetch_and_process_feeds(sources_db_path=None, tracking_db_path=None, delay_between_feeds=2, batch_size=100):

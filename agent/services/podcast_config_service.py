@@ -1,13 +1,15 @@
-from typing import List, Optional, Dict, Any
 from datetime import datetime
+from typing import Any
+
 from fastapi import HTTPException
+
 from services.db_service import tasks_db
 
 
 class PodcastConfigService:
     """Service for managing podcast configurations."""
 
-    async def get_all_configs(self, active_only: bool = False) -> List[Dict[str, Any]]:
+    async def get_all_configs(self, active_only: bool = False) -> list[dict[str, Any]]:
         """Get all podcast configurations with optional filtering."""
         try:
             if active_only:
@@ -38,7 +40,7 @@ class PodcastConfigService:
                 raise e
             raise HTTPException(status_code=500, detail=f"Error fetching podcast configurations: {str(e)}")
 
-    async def get_config(self, config_id: int) -> Dict[str, Any]:
+    async def get_config(self, config_id: int) -> dict[str, Any]:
         """Get a specific podcast configuration by ID."""
         try:
             query = """
@@ -62,15 +64,15 @@ class PodcastConfigService:
         self,
         name: str,
         prompt: str,
-        description: Optional[str] = None,
+        description: str | None = None,
         time_range_hours: int = 24,
         limit_articles: int = 20,
         is_active: bool = True,
         tts_engine: str = "kokoro",
         language_code: str = "en",
-        podcast_script_prompt: Optional[str] = None,
-        image_prompt: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        podcast_script_prompt: str | None = None,
+        image_prompt: str | None = None,
+    ) -> dict[str, Any]:
         """Create a new podcast configuration."""
         try:
             current_time = datetime.now().isoformat()
@@ -102,7 +104,7 @@ class PodcastConfigService:
                 raise e
             raise HTTPException(status_code=500, detail=f"Error creating podcast configuration: {str(e)}")
 
-    async def update_config(self, config_id: int, updates: Dict[str, Any]) -> Dict[str, Any]:
+    async def update_config(self, config_id: int, updates: dict[str, Any]) -> dict[str, Any]:
         """Update an existing podcast configuration."""
         try:
             allowed_fields = [
@@ -142,7 +144,7 @@ class PodcastConfigService:
                 raise e
             raise HTTPException(status_code=500, detail=f"Error updating podcast configuration: {str(e)}")
 
-    async def delete_config(self, config_id: int) -> Dict[str, str]:
+    async def delete_config(self, config_id: int) -> dict[str, str]:
         """Delete a podcast configuration."""
         try:
             config = await self.get_config(config_id)
@@ -157,7 +159,7 @@ class PodcastConfigService:
                 raise e
             raise HTTPException(status_code=500, detail=f"Error deleting podcast configuration: {str(e)}")
 
-    async def toggle_config(self, config_id: int, enable: bool) -> Dict[str, Any]:
+    async def toggle_config(self, config_id: int, enable: bool) -> dict[str, Any]:
         """Enable or disable a podcast configuration."""
         try:
             query = """

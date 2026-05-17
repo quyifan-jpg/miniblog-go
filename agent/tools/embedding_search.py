@@ -15,9 +15,9 @@ from db.connection import execute_query
 from db.milvus import get_milvus
 from utils.load_api_keys import load_api_key
 
-EMBEDDING_MODEL      = "text-embedding-3-small"
-TOP_K                = 20
-SIMILARITY_THRESHOLD = 0.40   # IP score threshold (OpenAI embeddings: ≥0.4 ≈ strong match)
+EMBEDDING_MODEL = "text-embedding-3-small"
+TOP_K = 20
+SIMILARITY_THRESHOLD = 0.40  # IP score threshold (OpenAI embeddings: ≥0.4 ≈ strong match)
 
 
 def _generate_query_embedding(query: str) -> list[float] | None:
@@ -68,8 +68,8 @@ def embedding_search(agent: Agent, prompt: str) -> str:
         return "Embedding search unavailable: could not generate query embedding. Continuing with other search methods."
 
     try:
-        mv      = get_milvus()
-        hits    = mv.search_articles(query_embedding, top_k=TOP_K)
+        mv = get_milvus()
+        hits = mv.search_articles(query_embedding, top_k=TOP_K)
         db_path = get_tracking_db_path()
     except Exception as e:
         return f"Embedding search unavailable: {e}. Continuing with other search methods."
@@ -79,27 +79,29 @@ def embedding_search(agent: Agent, prompt: str) -> str:
     if not hits:
         return "No high-quality semantic matches found (threshold: 40%). Continuing with other search methods."
 
-    article_ids  = [h["article_id"] for h in hits]
-    article_map  = _get_article_details(db_path, article_ids)
-    score_map    = {h["article_id"]: h["score"] for h in hits}
+    article_ids = [h["article_id"] for h in hits]
+    article_map = _get_article_details(db_path, article_ids)
+    score_map = {h["article_id"]: h["score"] for h in hits}
 
     results = []
     for aid in article_ids:
-        art   = article_map.get(aid)
+        art = article_map.get(aid)
         if not art:
             continue
         score = score_map.get(aid, 0.0)
-        results.append({
-            "id":             aid,
-            "title":          f"{art.get('title', 'Untitled')} (Relevance: {int(score * 100)}%)",
-            "url":            art.get("url", "#"),
-            "published_date": str(art.get("published_date", "")),
-            "description":    art.get("summary") or art.get("content") or "",
-            "source_id":      str(art.get("source_id", "")),
-            "similarity":     round(score, 3),
-            "categories":     ["semantic"],
-            "is_scrapping_required": False,
-        })
+        results.append(
+            {
+                "id": aid,
+                "title": f"{art.get('title', 'Untitled')} (Relevance: {int(score * 100)}%)",
+                "url": art.get("url", "#"),
+                "published_date": str(art.get("published_date", "")),
+                "description": art.get("summary") or art.get("content") or "",
+                "source_id": str(art.get("source_id", "")),
+                "similarity": round(score, 3),
+                "categories": ["semantic"],
+                "is_scrapping_required": False,
+            }
+        )
 
     print(f"[embedding_search] returning {len(results)} results")
     return f"Found {len(results)} results: {json.dumps(results, indent=2, ensure_ascii=False)}"

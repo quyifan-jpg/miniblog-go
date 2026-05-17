@@ -1,8 +1,8 @@
-from playwright.sync_api import sync_playwright
-import newspaper
 import time
-from typing import Dict, List
 from datetime import datetime
+
+import newspaper
+from playwright.sync_api import sync_playwright
 
 
 class PlaywrightScraper:
@@ -16,7 +16,7 @@ class PlaywrightScraper:
         self.timeout = timeout
         self.fresh_context_per_url = fresh_context_per_url
 
-    def scrape_urls(self, urls: List[str]) -> List[Dict]:
+    def scrape_urls(self, urls: list[str]) -> list[dict]:
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(
                 headless=self.headless,
@@ -32,7 +32,7 @@ class PlaywrightScraper:
             browser.close()
             return results
 
-    def _scrape_with_reused_page(self, browser, urls: List[str]) -> List[Dict]:
+    def _scrape_with_reused_page(self, browser, urls: list[str]) -> list[dict]:
         context = browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             viewport={"width": 1920, "height": 1080},
@@ -48,7 +48,7 @@ class PlaywrightScraper:
         results = []
         try:
             for i, url in enumerate(urls):
-                print(f"Scraping {i+1}/{len(urls)}")
+                print(f"Scraping {i + 1}/{len(urls)}")
                 result = self._scrape_single_url(page, url)
                 results.append(result)
                 if i < len(urls) - 1:
@@ -57,7 +57,7 @@ class PlaywrightScraper:
             context.close()
         return results
 
-    def _scrape_single_url(self, page, url: str) -> Dict:
+    def _scrape_single_url(self, page, url: str) -> dict:
         max_retries = 0
         for attempt in range(max_retries + 1):
             try:
@@ -79,7 +79,7 @@ class PlaywrightScraper:
                         "timestamp": datetime.now().isoformat(),
                     }
 
-    def _scrape_single_with_new_context(self, browser, url: str) -> Dict:
+    def _scrape_single_with_new_context(self, browser, url: str) -> dict:
         max_retries = 0
         for attempt in range(max_retries + 1):
             context = None
@@ -116,7 +116,7 @@ class PlaywrightScraper:
                 if context:
                     context.close()
 
-    def _parse_with_newspaper(self, original_url: str, final_url: str) -> Dict:
+    def _parse_with_newspaper(self, original_url: str, final_url: str) -> dict:
         try:
             article = newspaper.article(final_url)
             return {
@@ -139,8 +139,4 @@ class PlaywrightScraper:
 
 def create_browser_crawler(headless=True, timeout=20000, fresh_context_per_url=False):
     """Factory function to create a new PlaywrightScraper instance."""
-    return PlaywrightScraper(
-        headless=headless,
-        timeout=timeout,
-        fresh_context_per_url=fresh_context_per_url
-    )
+    return PlaywrightScraper(headless=headless, timeout=timeout, fresh_context_per_url=fresh_context_per_url)

@@ -1,18 +1,18 @@
-from typing import List
 import uuid
+from textwrap import dedent
+
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
-from pydantic import BaseModel, Field
-from dotenv import load_dotenv
 from agno.tools.duckduckgo import DuckDuckGoTools
-from textwrap import dedent
-from tools.wikipedia_search import wikipedia_search
+from dotenv import load_dotenv
+from pydantic import BaseModel, Field
+
+from tools.chunk_search import chunk_search
+from tools.embedding_search import embedding_search
 from tools.google_news_discovery import google_news_discovery_run
 from tools.jikan_search import jikan_search
-from tools.embedding_search import embedding_search
-from tools.chunk_search import chunk_search
 from tools.social_media_search import social_media_search, social_media_trending_search
-
+from tools.wikipedia_search import wikipedia_search
 
 load_dotenv()
 
@@ -40,7 +40,7 @@ class ReturnItem(BaseModel):
 
 
 class SearchResults(BaseModel):
-    items: List[ReturnItem] = Field(..., description="A list of search result items")
+    items: list[ReturnItem] = Field(..., description="A list of search result items")
 
 
 SEARCH_AGENT_DESCRIPTION = "You are a helpful assistant that can search the web for information."

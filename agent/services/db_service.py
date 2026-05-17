@@ -1,7 +1,9 @@
 import os
-from typing import Dict, List, Any, Tuple, Union
-from fastapi import HTTPException
 from contextlib import contextmanager
+from typing import Any
+
+from fastapi import HTTPException
+
 from db.config import get_db_path
 from db.connection import db_connection as shared_db_connection
 
@@ -35,8 +37,8 @@ class DatabaseService:
         self.db_path = get_db_path(db_name)
 
     async def execute_query(
-        self, query: str, params: Tuple = (), fetch: bool = False, fetch_one: bool = False
-    ) -> Union[List[Dict[str, Any]], Dict[str, Any], int]:
+        self, query: str, params: tuple = (), fetch: bool = False, fetch_one: bool = False
+    ) -> list[dict[str, Any]] | dict[str, Any] | int:
         """Execute a query with error handling for FastAPI."""
         try:
             with db_connection(self.db_path) as conn:
@@ -56,7 +58,7 @@ class DatabaseService:
                 raise e
             raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-    async def execute_write_many(self, query: str, params_list: List[Tuple]) -> int:
+    async def execute_write_many(self, query: str, params_list: list[tuple]) -> int:
         """Execute multiple write operations in a single transaction."""
         try:
             with db_connection(self.db_path) as conn:
@@ -68,7 +70,6 @@ class DatabaseService:
             if isinstance(e, HTTPException):
                 raise e
             raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-
 
 
 sources_db = DatabaseService(db_name="sources_db")

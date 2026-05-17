@@ -1,21 +1,22 @@
+from typing import Any
+
 from pydantic import BaseModel
-from typing import Optional, List, Dict, Any, Union
 
 
 class PodcastBase(BaseModel):
     title: str
     date: str
     audio_generated: bool = False
-    banner_img: Optional[str] = None
+    banner_img: str | None = None
     identifier: str
-    language_code: Optional[str] = "en"
-    tts_engine: Optional[str] = "kokoro"
+    language_code: str | None = "en"
+    tts_engine: str | None = "kokoro"
 
 
 class Podcast(PodcastBase):
     id: int
-    created_at: Optional[str] = None
-    audio_path: Optional[str] = None
+    created_at: str | None = None
+    audio_path: str | None = None
 
     class Config:
         from_attributes = True
@@ -23,13 +24,13 @@ class Podcast(PodcastBase):
 
 class PodcastContent(BaseModel):
     title: str
-    sections: List[Dict[str, Any]]
+    sections: list[dict[str, Any]]
 
 
 class PodcastSource(BaseModel):
-    title: Optional[str] = None
-    url: Optional[str] = None
-    source: Optional[str] = None
+    title: str | None = None
+    url: str | None = None
+    source: str | None = None
 
     @classmethod
     def __get_validators__(cls):
@@ -47,32 +48,32 @@ class PodcastSource(BaseModel):
 class PodcastDetail(BaseModel):
     podcast: Podcast
     content: PodcastContent
-    audio_url: Optional[str] = None
-    sources: Optional[List[Union[PodcastSource, str]]] = None
-    banner_images: Optional[List[str]] = None
+    audio_url: str | None = None
+    sources: list[PodcastSource | str] | None = None
+    banner_images: list[str] | None = None
 
 
 class PodcastCreate(BaseModel):
     title: str
-    date: Optional[str] = None
-    content: Dict[str, Any]
-    sources: Optional[List[Union[Dict[str, str], str]]] = None
-    language_code: Optional[str] = "en"
-    tts_engine: Optional[str] = "kokoro"
+    date: str | None = None
+    content: dict[str, Any]
+    sources: list[dict[str, str] | str] | None = None
+    language_code: str | None = "en"
+    tts_engine: str | None = "kokoro"
 
 
 class PodcastUpdate(BaseModel):
-    title: Optional[str] = None
-    date: Optional[str] = None
-    content: Optional[Dict[str, Any]] = None
-    audio_generated: Optional[bool] = None
-    sources: Optional[List[Union[Dict[str, str], str]]] = None
-    language_code: Optional[str] = None
-    tts_engine: Optional[str] = None
+    title: str | None = None
+    date: str | None = None
+    content: dict[str, Any] | None = None
+    audio_generated: bool | None = None
+    sources: list[dict[str, str] | str] | None = None
+    language_code: str | None = None
+    tts_engine: str | None = None
 
 
 class PaginatedPodcasts(BaseModel):
-    items: List[Podcast]
+    items: list[Podcast]
     total: int
     page: int
     per_page: int

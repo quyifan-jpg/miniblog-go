@@ -1,9 +1,10 @@
-import time
 import json
+import time
+
 from tools.social.browser import create_browser_context
-from tools.social.fb_post_extractor import parse_facebook_posts, normalize_facebook_posts_batch
+from tools.social.db import check_and_store_post, create_connection, setup_database, update_posts_with_analysis
+from tools.social.fb_post_extractor import normalize_facebook_posts_batch, parse_facebook_posts
 from tools.social.x_agent import analyze_posts_sentiment
-from tools.social.db import create_connection, setup_database, check_and_store_post, update_posts_with_analysis
 
 
 def contains_facebook_posts(json_obj):
@@ -83,7 +84,9 @@ def crawl_facebook_feed(target_url="https://facebook.com", db_file="fb_posts.db"
                 if 'text/html; charset="utf-8"' not in content_type:
                     return
                 response_text = response.text()
-                posts_found = process_facebook_graphql_response(response_text, seen_post_ids, analysis_queue, queue_post_ids, conn)
+                posts_found = process_facebook_graphql_response(
+                    response_text, seen_post_ids, analysis_queue, queue_post_ids, conn
+                )
                 if posts_found > 0:
                     post_count += posts_found
                 if len(analysis_queue) >= batch_size:

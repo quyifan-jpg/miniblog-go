@@ -1,18 +1,19 @@
-from agno.agent import Agent
 import os
-from datetime import datetime
 import tempfile
+from datetime import datetime
+from typing import Any
+
 import numpy as np
 import soundfile as sf
-from typing import Any, Dict, List, Optional, Tuple
-from utils.load_api_keys import load_api_key
+from agno.agent import Agent
 from openai import OpenAI
 from scipy import signal
 
+from utils.load_api_keys import load_api_key
 
 PODCASTS_FOLDER = "podcasts"
 PODCAST_AUDIO_FOLDER = os.path.join(PODCASTS_FOLDER, "audio")
-PODCAST_MUSIC_FOLDER = os.path.join('static', "musics")
+PODCAST_MUSIC_FOLDER = os.path.join("static", "musics")
 OPENAI_VOICES = {1: "alloy", 2: "echo", 3: "fable", 4: "onyx", 5: "nova", 6: "shimmer"}
 DEFAULT_VOICE_MAP = {1: "alloy", 2: "nova"}
 TTS_MODEL = "gpt-4o-mini-tts"
@@ -36,7 +37,7 @@ def create_silence_audio(silence_duration: float, sampling_rate: int) -> np.ndar
     return np.zeros(int(sampling_rate * silence_duration), dtype=np.float32)
 
 
-def combine_audio_segments(audio_segments: List[np.ndarray], silence_duration: float, sampling_rate: int) -> np.ndarray:
+def combine_audio_segments(audio_segments: list[np.ndarray], silence_duration: float, sampling_rate: int) -> np.ndarray:
     if not audio_segments:
         return np.zeros(0, dtype=np.float32)
     silence = create_silence_audio(silence_duration, sampling_rate)
@@ -52,7 +53,7 @@ def combine_audio_segments(audio_segments: List[np.ndarray], silence_duration: f
     return combined
 
 
-def process_audio_file(temp_path: str) -> Optional[Tuple[np.ndarray, int]]:
+def process_audio_file(temp_path: str) -> tuple[np.ndarray, int] | None:
     try:
         from pydub import AudioSegment
 
@@ -106,9 +107,9 @@ def text_to_speech_openai(
     client: OpenAI,
     text: str,
     speaker_id: int,
-    voice_map: Dict[int, str] = None,
+    voice_map: dict[int, str] = None,
     model: str = TTS_MODEL,
-) -> Optional[Tuple[np.ndarray, int]]:
+) -> tuple[np.ndarray, int] | None:
     if not text.strip():
         print("Empty text provided, skipping TTS generation")
         return None
@@ -157,9 +158,9 @@ def create_podcast(
     tts_engine: str = "openai",
     language_code: str = "en",
     silence_duration: float = 0.7,
-    voice_map: Dict[int, str] = None,
+    voice_map: dict[int, str] = None,
     model: str = TTS_MODEL,
-) -> Optional[str]:
+) -> str | None:
     if tts_engine.lower() != "openai":
         print(f"Only OpenAI TTS engine is available in this standalone version. Requested: {tts_engine}")
         return None

@@ -1,6 +1,8 @@
 import json
-from typing import List, Dict, Any
+from typing import Any
+
 from openai import OpenAI
+
 from utils.load_api_keys import load_api_key
 
 TRANSLATION_MODEL = "gpt-4o"
@@ -20,7 +22,7 @@ LANG_CODE_TO_NAME = {
 }
 
 
-def translate_script(script: List[Dict[str, Any]], lang_code: str = "b") -> List[Dict[str, Any]]:
+def translate_script(script: list[dict[str, Any]], lang_code: str = "b") -> list[dict[str, Any]]:
     script = [{"text": e["text"], "speaker": e["speaker"]} for e in script]
     target_lang = LANG_CODE_TO_NAME.get(lang_code)
     if target_lang is None:

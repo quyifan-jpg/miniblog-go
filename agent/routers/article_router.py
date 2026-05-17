@@ -1,5 +1,7 @@
+from typing import Any
+
 from fastapi import APIRouter, Query
-from typing import List, Optional, Dict, Any
+
 from models.article_schemas import Article, PaginatedArticles
 from services.article_service import article_service
 
@@ -10,11 +12,11 @@ router = APIRouter()
 async def read_articles(
     page: int = Query(1, ge=1, description="Page number"),
     per_page: int = Query(10, ge=1, le=100, description="Items per page"),
-    source: Optional[str] = Query(None, description="Filter by source name"),
-    category: Optional[str] = Query(None, description="Filter by category"),
-    date_from: Optional[str] = Query(None, description="Filter by start date (format: YYYY-MM-DD)"),
-    date_to: Optional[str] = Query(None, description="Filter by end date (format: YYYY-MM-DD)"),
-    search: Optional[str] = Query(None, description="Search in title and summary"),
+    source: str | None = Query(None, description="Filter by source name"),
+    category: str | None = Query(None, description="Filter by category"),
+    date_from: str | None = Query(None, description="Filter by start date (format: YYYY-MM-DD)"),
+    date_to: str | None = Query(None, description="Filter by end date (format: YYYY-MM-DD)"),
+    search: str | None = Query(None, description="Search in title and summary"),
 ):
     """
     Get all articles with pagination and filtering.
@@ -28,7 +30,13 @@ async def read_articles(
     - **search**: Search in title and summary
     """
     return await article_service.get_articles(
-        page=page, per_page=per_page, source=source, category=category, date_from=date_from, date_to=date_to, search=search
+        page=page,
+        per_page=per_page,
+        source=source,
+        category=category,
+        date_from=date_from,
+        date_to=date_to,
+        search=search,
     )
 
 
@@ -42,13 +50,13 @@ async def read_article(article_id: int):
     return await article_service.get_article(article_id=article_id)
 
 
-@router.get("/sources/list", response_model=List[str])
+@router.get("/sources/list", response_model=list[str])
 async def read_sources():
     """Get all available sources."""
     return await article_service.get_sources()
 
 
-@router.get("/categories/list", response_model=List[Dict[str, Any]])
+@router.get("/categories/list", response_model=list[dict[str, Any]])
 async def read_categories():
     """Get all available categories with article counts."""
     return await article_service.get_categories()

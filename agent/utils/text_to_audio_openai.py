@@ -1,9 +1,11 @@
 import os
-from typing import List, Optional, Tuple, Dict, Any
 import tempfile
+from typing import Any
+
 import numpy as np
 import soundfile as sf
 from openai import OpenAI
+
 from utils.load_api_keys import load_api_key
 
 OPENAI_VOICES = {1: "alloy", 2: "echo", 3: "fable", 4: "onyx", 5: "nova", 6: "shimmer"}
@@ -18,7 +20,7 @@ def create_silence_audio(silence_duration: float, sampling_rate: int) -> np.ndar
     return np.zeros(int(sampling_rate * silence_duration), dtype=np.float32)
 
 
-def combine_audio_segments(audio_segments: List[np.ndarray], silence_duration: float, sampling_rate: int) -> np.ndarray:
+def combine_audio_segments(audio_segments: list[np.ndarray], silence_duration: float, sampling_rate: int) -> np.ndarray:
     if not audio_segments:
         return np.zeros(0, dtype=np.float32)
     silence = create_silence_audio(silence_duration, sampling_rate)
@@ -38,9 +40,9 @@ def text_to_speech_openai(
     client: OpenAI,
     text: str,
     speaker_id: int,
-    voice_map: Dict[int, str] = None,
+    voice_map: dict[int, str] = None,
     model: str = TEXT_TO_SPEECH_MODEL,
-) -> Optional[Tuple[np.ndarray, int]]:
+) -> tuple[np.ndarray, int] | None:
     if not text.strip():
         print("WARNING: Empty text provided, skipping TTS generation")
         return None
@@ -123,9 +125,9 @@ def create_podcast(
     sampling_rate: int = 24000,
     lang_code: str = "en",
     model: str = TEXT_TO_SPEECH_MODEL,
-    voice_map: Dict[int, str] = None,
+    voice_map: dict[int, str] = None,
     api_key: str = None,
-) -> Optional[str]:
+) -> str | None:
     try:
         if not api_key:
             api_key = load_api_key()
@@ -174,7 +176,9 @@ def create_podcast(
                 try:
                     import librosa
 
-                    segment_audio = librosa.resample(segment_audio, orig_sr=segment_rate, target_sr=sampling_rate_detected)
+                    segment_audio = librosa.resample(
+                        segment_audio, orig_sr=segment_rate, target_sr=sampling_rate_detected
+                    )
                     print(f"INFO: Resampled to {sampling_rate_detected} Hz")
                 except ImportError:
                     sampling_rate_detected = segment_rate

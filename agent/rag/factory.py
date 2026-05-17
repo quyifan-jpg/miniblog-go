@@ -45,42 +45,52 @@ def create_retrieval_engine() -> MultiChannelRetrievalEngine:
 
 def _build_channels():
     """Instantiate enabled channels based on config."""
-    from rag.channels.chunk_vector_channel import ChunkVectorChannel
     from rag.channels.article_vector_channel import ArticleVectorChannel
+    from rag.channels.chunk_vector_channel import ChunkVectorChannel
+    from rag.channels.external_search_channel import ExternalSearchChannel
     from rag.channels.keyword_channel import KeywordChannel
     from rag.channels.social_media_channel import SocialMediaChannel
-    from rag.channels.external_search_channel import ExternalSearchChannel
 
     channels = []
 
     if rag_settings.chunk_vector_enabled:
-        channels.append(ChunkVectorChannel(
-            top_k_multiplier=rag_settings.top_k_multiplier,
-            min_similarity=rag_settings.chunk_min_similarity,
-            max_chunks_per_article=rag_settings.chunk_max_per_article,
-        ))
+        channels.append(
+            ChunkVectorChannel(
+                top_k_multiplier=rag_settings.top_k_multiplier,
+                min_similarity=rag_settings.chunk_min_similarity,
+                max_chunks_per_article=rag_settings.chunk_max_per_article,
+            )
+        )
 
     if rag_settings.article_vector_enabled:
-        channels.append(ArticleVectorChannel(
-            top_k_multiplier=rag_settings.top_k_multiplier,
-            min_similarity=rag_settings.article_min_similarity,
-        ))
+        channels.append(
+            ArticleVectorChannel(
+                top_k_multiplier=rag_settings.top_k_multiplier,
+                min_similarity=rag_settings.article_min_similarity,
+            )
+        )
 
     if rag_settings.keyword_enabled:
-        channels.append(KeywordChannel(
-            top_k_multiplier=rag_settings.top_k_multiplier,
-        ))
+        channels.append(
+            KeywordChannel(
+                top_k_multiplier=rag_settings.top_k_multiplier,
+            )
+        )
 
     if rag_settings.social_media_enabled:
-        channels.append(SocialMediaChannel(
-            days_back=rag_settings.social_media_days_back,
-        ))
+        channels.append(
+            SocialMediaChannel(
+                days_back=rag_settings.social_media_days_back,
+            )
+        )
 
     if rag_settings.external_search_enabled:
-        channels.append(ExternalSearchChannel(
-            google_news_max=rag_settings.google_news_max,
-            duckduckgo_max=rag_settings.duckduckgo_max,
-        ))
+        channels.append(
+            ExternalSearchChannel(
+                google_news_max=rag_settings.google_news_max,
+                duckduckgo_max=rag_settings.duckduckgo_max,
+            )
+        )
 
     return channels
 
@@ -88,9 +98,9 @@ def _build_channels():
 def _build_postprocessors():
     """Instantiate enabled post-processors based on config."""
     from rag.postprocessors.dedup import DeduplicationProcessor
-    from rag.postprocessors.rrf import RRFProcessor
-    from rag.postprocessors.rerank import RerankProcessor
     from rag.postprocessors.quality_filter import QualityFilterProcessor
+    from rag.postprocessors.rerank import RerankProcessor
+    from rag.postprocessors.rrf import RRFProcessor
 
     processors = []
 
@@ -101,26 +111,33 @@ def _build_postprocessors():
         processors.append(RRFProcessor(k=rag_settings.rrf_k))
 
     if rag_settings.rerank_enabled:
-        processors.append(RerankProcessor(
-            provider=rag_settings.rerank_provider,
-            api_key=rag_settings.rerank_api_key,
-            model=rag_settings.rerank_model,
-        ))
+        processors.append(
+            RerankProcessor(
+                provider=rag_settings.rerank_provider,
+                api_key=rag_settings.rerank_api_key,
+                model=rag_settings.rerank_model,
+            )
+        )
 
     if rag_settings.freshness_enabled:
         from rag.postprocessors.freshness import FreshnessBoostProcessor
-        processors.append(FreshnessBoostProcessor(
-            half_life_days=rag_settings.freshness_half_life_days,
-            floor_multiplier=rag_settings.freshness_floor_multiplier,
-        ))
+
+        processors.append(
+            FreshnessBoostProcessor(
+                half_life_days=rag_settings.freshness_half_life_days,
+                floor_multiplier=rag_settings.freshness_floor_multiplier,
+            )
+        )
 
     if rag_settings.quality_filter_enabled:
-        processors.append(QualityFilterProcessor(
-            min_score=rag_settings.quality_min_score,
-            min_content_length=rag_settings.quality_min_length,
-            keep_best_when_all_filtered=rag_settings.quality_keep_best,
-            max_age_days=rag_settings.quality_max_age_days,
-        ))
+        processors.append(
+            QualityFilterProcessor(
+                min_score=rag_settings.quality_min_score,
+                min_content_length=rag_settings.quality_min_length,
+                keep_best_when_all_filtered=rag_settings.quality_keep_best,
+                max_age_days=rag_settings.quality_max_age_days,
+            )
+        )
 
     return processors
 

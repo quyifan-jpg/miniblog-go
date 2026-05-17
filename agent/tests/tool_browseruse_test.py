@@ -1,8 +1,8 @@
-from langchain_openai import ChatOpenAI
-from browser_use import Agent
-from dotenv import load_dotenv
 import asyncio
 
+from browser_use import Agent
+from dotenv import load_dotenv
+from langchain_openai import ChatOpenAI
 
 load_dotenv()
 llm = ChatOpenAI(model="gpt-4o")

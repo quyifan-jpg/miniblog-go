@@ -18,15 +18,15 @@ Notes:
 
 from __future__ import annotations
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 from alembic import op
 from sqlalchemy import inspect
 
 revision: str = "0001_initial"
-down_revision: Union[str, None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def _column_exists(table: str, column: str) -> bool:
@@ -56,9 +56,7 @@ def upgrade() -> None:
 
         index_name = f"idx_{table}_deleted_at"
         if not _index_exists(table, index_name):
-            op.execute(
-                f"CREATE INDEX `{index_name}` ON `{table}` (`deleted_at`)"
-            )
+            op.execute(f"CREATE INDEX `{index_name}` ON `{table}` (`deleted_at`)")
 
 
 def downgrade() -> None:

@@ -1,10 +1,12 @@
-from typing import Optional, Dict, Any
-from fastapi import HTTPException
 import json
-from datetime import datetime
-from db.config import get_db_path
-from db.agent_config_v2 import INITIAL_SESSION_STATE
 from contextlib import contextmanager
+from datetime import datetime
+from typing import Any
+
+from fastapi import HTTPException
+
+from db.agent_config_v2 import INITIAL_SESSION_STATE
+from db.config import get_db_path
 from db.connection import db_connection as shared_db_connection
 from services.redis_cache import build_cache_key, sync_redis_cache
 
@@ -39,7 +41,7 @@ class SessionService:
         )
 
     @staticmethod
-    def get_session(session_id: str) -> Dict[str, Any]:
+    def get_session(session_id: str) -> dict[str, Any]:
         cache_key = SessionService._session_cache_key(session_id)
         cached_session = sync_redis_cache.get_json(cache_key)
         if isinstance(cached_session, dict):
@@ -70,7 +72,7 @@ class SessionService:
             raise HTTPException(status_code=500, detail=f"Error fetching session: {str(e)}")
 
     @staticmethod
-    def _initialize_session(session_id: str) -> Dict[str, Any]:
+    def _initialize_session(session_id: str) -> dict[str, Any]:
         try:
             with get_db_connection("internal_sessions_db") as conn:
                 cursor = conn.cursor()
@@ -93,7 +95,7 @@ class SessionService:
             raise HTTPException(status_code=500, detail=f"Error initializing session: {str(e)}")
 
     @staticmethod
-    def save_session(session_id: str, state: Dict[str, Any]) -> Dict[str, Any]:
+    def save_session(session_id: str, state: dict[str, Any]) -> dict[str, Any]:
         try:
             state_json = json.dumps(state)
             with get_db_connection("internal_sessions_db") as conn:
@@ -118,7 +120,7 @@ class SessionService:
             raise HTTPException(status_code=500, detail=f"Error saving session: {str(e)}")
 
     @staticmethod
-    def delete_session(session_id: str) -> Dict[str, str]:
+    def delete_session(session_id: str) -> dict[str, str]:
         try:
             with get_db_connection("internal_sessions_db") as conn:
                 cursor = conn.cursor()
@@ -139,7 +141,7 @@ class SessionService:
             raise HTTPException(status_code=500, detail=f"Error deleting session: {str(e)}")
 
     @staticmethod
-    def list_sessions(page: int = 1, per_page: int = 10, search: Optional[str] = None) -> Dict[str, Any]:
+    def list_sessions(page: int = 1, per_page: int = 10, search: str | None = None) -> dict[str, Any]:
         try:
             with get_db_connection("internal_sessions_db") as conn:
                 cursor = conn.cursor()
@@ -174,7 +176,7 @@ class SessionService:
                 has_next = page < total_pages
                 has_prev = page > 1
                 return {
-                    "items": sessions,  
+                    "items": sessions,
                     "total": total_count,
                     "page": page,
                     "per_page": per_page,

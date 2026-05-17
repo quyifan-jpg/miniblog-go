@@ -83,9 +83,7 @@ class KeywordChannel(SearchChannel):
         # Preserve BM25 ranking — DB IN(...) returns unordered, so we
         # reorder by the score map.
         rows_by_id = {int(r["id"]): r for r in rows}
-        ordered_rows = [
-            rows_by_id[aid] for aid in article_ids if aid in rows_by_id
-        ]
+        ordered_rows = [rows_by_id[aid] for aid in article_ids if aid in rows_by_id]
 
         # ── Build chunks ────────────────────────────────────────────
         max_score = max(scores_by_id.values(), default=0.0)
@@ -99,19 +97,21 @@ class KeywordChannel(SearchChannel):
             title = row.get("title", "") or ""
             title_match = query_lower in title.lower()
 
-            chunks.append(RetrievedChunk(
-                id=str(aid),
-                content=row.get("content", "") or "",
-                title=title,
-                url=row.get("url", "") or "",
-                score=normalized,
-                source_channel=ChannelType.KEYWORD,
-                metadata={
-                    MetadataKey.PUBLISHED_DATE: row.get("published_date", ""),
-                    MetadataKey.SOURCE_ID:      str(row.get("source_id", "")),
-                    MetadataKey.MATCH_TYPE:     "title" if title_match else "content",
-                },
-            ))
+            chunks.append(
+                RetrievedChunk(
+                    id=str(aid),
+                    content=row.get("content", "") or "",
+                    title=title,
+                    url=row.get("url", "") or "",
+                    score=normalized,
+                    source_channel=ChannelType.KEYWORD,
+                    metadata={
+                        MetadataKey.PUBLISHED_DATE: row.get("published_date", ""),
+                        MetadataKey.SOURCE_ID: str(row.get("source_id", "")),
+                        MetadataKey.MATCH_TYPE: "title" if title_match else "content",
+                    },
+                )
+            )
 
         elapsed = (time.perf_counter() - start) * 1000
         logger.info(

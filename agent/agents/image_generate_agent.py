@@ -1,14 +1,14 @@
-from agno.agent import Agent
-from agno.models.openai import OpenAIChat
-from agno.tools.dalle import DalleTools
-from textwrap import dedent
 import json
-from dotenv import load_dotenv
-import uuid
-from db.agent_config_v2 import PODCAST_IMG_DIR
 import os
-import requests
+import uuid
+from textwrap import dedent
 
+import requests
+from agno.agent import Agent
+from agno.tools.dalle import DalleTools
+from dotenv import load_dotenv
+
+from db.agent_config_v2 import PODCAST_IMG_DIR
 
 load_dotenv()
 
@@ -73,6 +73,7 @@ def image_generation_agent_run(agent: Agent, query: str) -> str:
 
     try:
         from services.model_router import router
+
         image_agent = Agent(
             model=router.get_agno_model(),
             tools=[DalleTools()],
@@ -82,7 +83,10 @@ def image_generation_agent_run(agent: Agent, query: str) -> str:
             show_tool_calls=True,
             session_id=agent.session_id,
         )
-        image_agent.run(f"query: {query},\n podcast script: {json.dumps(session_state['generated_script'])}", session_id=agent.session_id)
+        image_agent.run(
+            f"query: {query},\n podcast script: {json.dumps(session_state['generated_script'])}",
+            session_id=agent.session_id,
+        )
         images = image_agent.get_images()
         image_urls = []
         if images and isinstance(images, list):

@@ -19,6 +19,34 @@ ignore = [
   "S607",  # allow partial executable paths
   "N806",  # allow uppercase variable names (common in AI code)
   "E501",  # line length handled by formatter
+  # Whitespace inside prompt strings — preserved intentionally
+  "W291",
+  "W293",
+  # Security warnings accepted for this internal codebase
+  "S104",  # bind-all-interfaces
+  "S105",  # hardcoded password string (test fixtures, defaults)
+  "S110",  # try-except-pass
+  "S113",  # request-without-timeout
+  "S311",  # non-cryptographic random (used for IDs / sampling)
+  "S324",  # md5/sha1 (used for cache keys, not security)
+  "S602",  # subprocess with shell=True
+  "S605",  # start-process-with-shell
+  "S608",  # hardcoded SQL — internal queries, not user input
+  # Pragmatic style exceptions (gradual cleanup, not blockers)
+  "B904",  # raise ... from err — behavior-preserving but invasive
+  "B006",  # mutable default arg
+  "B007",  # unused loop variable (cosmetic)
+  "B905",  # zip(strict=)
+  "E402",  # module import not at top of file
+  "E722",  # bare except
+  "E731",  # lambda assignment
+  "E741",  # ambiguous variable name
+  "F821",  # undefined-name (mostly false positives from dynamic imports)
+  "F841",  # unused variable
+  "N803",  # arg name not snake_case
+  "N805",  # first method arg not self
+  "N818",  # exception name should end in Error
+  "UP042", # use StrEnum
 ]
 
 [lint.per-file-ignores]

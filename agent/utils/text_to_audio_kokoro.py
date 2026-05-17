@@ -1,9 +1,11 @@
 # ruff: noqa: E402
 import os
 import warnings
-from typing import List, Any
+from typing import Any
+
 import numpy as np
 import soundfile as sf
+
 from .translate_podcast import translate_script
 
 os.environ["PYTHONWARNINGS"] = "ignore"
@@ -49,7 +51,7 @@ def create_audio_segments(
     silence_duration: float,
     sampling_rate: int,
     lang_code: str,
-) -> List[np.ndarray]:
+) -> list[np.ndarray]:
     audio_segments = []
     silence = create_slience_audio(silence_duration, sampling_rate)
     entries = script if isinstance(script, list) else script.entries
@@ -73,7 +75,7 @@ def create_audio_segments(
     return audio_segments
 
 
-def combine_full_segments(audio_segments: List[np.ndarray]) -> np.ndarray:
+def combine_full_segments(audio_segments: list[np.ndarray]) -> np.ndarray:
     full_audio = np.concatenate(audio_segments)
     max_amp = np.max(np.abs(full_audio))
     if max_amp > 0:

@@ -1,7 +1,8 @@
-import os
 import asyncio
+import os
 import time
 from concurrent.futures import ThreadPoolExecutor
+
 from services.db_service import get_db_path
 from services.mysql_init import init_mysql_schema
 
@@ -47,7 +48,9 @@ async def init_agent_session_db():
 def init_internal_sessions_db():
     start_time = time.time()
     db_path = get_db_path("internal_sessions_db")
-    raise RuntimeError(f"SQLite init_internal_sessions_db is disabled. Configure MySQL (DATABASE_URL). db_path={db_path}")
+    raise RuntimeError(
+        f"SQLite init_internal_sessions_db is disabled. Configure MySQL (DATABASE_URL). db_path={db_path}"
+    )
     elapsed = time.time() - start_time
     print(f"Internal sessions database initialized in {elapsed:.3f}s")
 

@@ -18,7 +18,7 @@ Usage:
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 
 class MiniblogException(Exception):
@@ -28,7 +28,7 @@ class MiniblogException(Exception):
         self,
         message: str,
         code: int = 500,
-        data: Optional[Any] = None,
+        data: Any | None = None,
     ) -> None:
         super().__init__(message)
         self.code = code
@@ -41,6 +41,7 @@ class MiniblogException(Exception):
 
 # ── 4xx Client Errors ──────────────────────────────────────────────────────────
 
+
 class ClientException(MiniblogException):
     """
     4xx — The caller made an invalid request.
@@ -51,7 +52,7 @@ class ClientException(MiniblogException):
         self,
         message: str = "Bad request",
         code: int = 400,
-        data: Optional[Any] = None,
+        data: Any | None = None,
     ) -> None:
         super().__init__(message=message, code=code, data=data)
 
@@ -62,7 +63,7 @@ class NotFoundException(ClientException):
     Usage: raise NotFoundException("Article")  →  "Article not found"
     """
 
-    def __init__(self, resource: str = "Resource", data: Optional[Any] = None) -> None:
+    def __init__(self, resource: str = "Resource", data: Any | None = None) -> None:
         super().__init__(message=f"{resource} not found", code=404, data=data)
 
 
@@ -72,7 +73,7 @@ class UnauthorizedException(ClientException):
     def __init__(
         self,
         message: str = "Authentication required",
-        data: Optional[Any] = None,
+        data: Any | None = None,
     ) -> None:
         super().__init__(message=message, code=401, data=data)
 
@@ -83,7 +84,7 @@ class ForbiddenException(ClientException):
     def __init__(
         self,
         message: str = "Access denied",
-        data: Optional[Any] = None,
+        data: Any | None = None,
     ) -> None:
         super().__init__(message=message, code=403, data=data)
 
@@ -94,7 +95,7 @@ class TooManyRequestsException(ClientException):
     def __init__(
         self,
         message: str = "Too many requests, please try again later",
-        data: Optional[Any] = None,
+        data: Any | None = None,
     ) -> None:
         super().__init__(message=message, code=429, data=data)
 
@@ -105,12 +106,13 @@ class ConflictException(ClientException):
     def __init__(
         self,
         message: str = "Request conflict",
-        data: Optional[Any] = None,
+        data: Any | None = None,
     ) -> None:
         super().__init__(message=message, code=409, data=data)
 
 
 # ── 5xx Server Errors ──────────────────────────────────────────────────────────
+
 
 class ServiceException(MiniblogException):
     """
@@ -122,7 +124,7 @@ class ServiceException(MiniblogException):
         self,
         message: str = "Internal server error",
         code: int = 500,
-        data: Optional[Any] = None,
+        data: Any | None = None,
     ) -> None:
         super().__init__(message=message, code=code, data=data)
 
@@ -142,7 +144,7 @@ class RemoteException(ServiceException):
         upstream: str,
         message: str = "Upstream service unavailable",
         code: int = 502,
-        data: Optional[Any] = None,
+        data: Any | None = None,
     ) -> None:
         super().__init__(message=f"[{upstream}] {message}", code=code, data=data)
         self.upstream = upstream

@@ -1,16 +1,13 @@
 # main.py
+from textwrap import dedent
+
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
-from pydantic import BaseModel, Field
-from typing import List
-from textwrap import dedent
 from dotenv import load_dotenv
-import os
+from pydantic import BaseModel
 
 # 加载环境变量
 load_dotenv()
-
-
 
 
 # 导入 jikan_search 工具
@@ -29,7 +26,7 @@ class ReturnItem(BaseModel):
 
 
 class SearchResults(BaseModel):
-    items: List[ReturnItem]
+    items: list[ReturnItem]
 
 
 # ------ Search Agent Prompt ------

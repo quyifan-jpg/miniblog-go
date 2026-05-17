@@ -1,19 +1,20 @@
-from agno.agent import Agent
-import requests
-import time
-from typing import List, Dict, Any, Optional
 import html
 import json
+import time
+from typing import Any
+
+import requests
+from agno.agent import Agent
 
 
 def jikan_search(agent: Agent, query: str) -> str:
     """
     Search for anime information using the Jikan API (MyAnimeList API).
     This provides anime data, reviews, and recommendations to enhance podcast content.
-    
+
     Jikan scrapes public MyAnimeList pages.
     The service consists of two core parts
-    
+
     Args:
         agent: The agent instance
         query: The search query
@@ -44,7 +45,7 @@ def jikan_search(agent: Agent, query: str) -> str:
         return f"Error in anime search: {str(e)}. Continuing with other search methods."
 
 
-def _search_anime(query: str) -> List[Dict[str, Any]]:
+def _search_anime(query: str) -> list[dict[str, Any]]:
     try:
         search_url = f"https://api.jikan.moe/v4/anime?q={query}&sfw=true&order_by=popularity&sort=asc&limit=10"
         response = requests.get(search_url)
@@ -61,7 +62,7 @@ def _search_anime(query: str) -> List[Dict[str, Any]]:
         return []
 
 
-def _get_anime_details(anime_id: int) -> Optional[Dict[str, Any]]:
+def _get_anime_details(anime_id: int) -> dict[str, Any] | None:
     try:
         details_url = f"https://api.jikan.moe/v4/anime/{anime_id}/full"
         details_response = requests.get(details_url)
@@ -79,7 +80,7 @@ def _get_anime_details(anime_id: int) -> Optional[Dict[str, Any]]:
         return None
 
 
-def _get_anime_recommendations(anime_id: int) -> List[Dict[str, Any]]:
+def _get_anime_recommendations(anime_id: int) -> list[dict[str, Any]]:
     try:
         recs_url = f"https://api.jikan.moe/v4/anime/{anime_id}/recommendations"
         recs_response = requests.get(recs_url)
@@ -103,7 +104,7 @@ def _get_anime_recommendations(anime_id: int) -> List[Dict[str, Any]]:
         return []
 
 
-def _format_anime_info(anime: Dict[str, Any]) -> Dict[str, Any]:
+def _format_anime_info(anime: dict[str, Any]) -> dict[str, Any]:
     try:
         mal_id = anime.get("mal_id")
         title = anime.get("title", "Unknown Anime")
@@ -178,7 +179,6 @@ def _format_anime_info(anime: Dict[str, Any]) -> Dict[str, Any]:
             "source_name": "MyAnimeList",
             "categories": categories,
             "is_scrapping_required": False,
-
         }
     except Exception as _:
         return {
@@ -192,8 +192,7 @@ def _format_anime_info(anime: Dict[str, Any]) -> Dict[str, Any]:
             "categories": ["anime", "japanese animation", "entertainment"],
             "is_scrapping_required": False,
         }
-        
-        
+
+
 if __name__ == "__main__":
     print(jikan_search({}, "One Piece anime overview and details"))
-    

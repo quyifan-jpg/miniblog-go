@@ -36,8 +36,8 @@ import asyncio
 import functools
 import threading
 import time
+from collections.abc import Callable
 from enum import Enum
-from typing import Callable, Optional, Type
 
 from loguru import logger
 
@@ -61,7 +61,7 @@ class CircuitBreaker:
         name: str,
         failure_threshold: int = 5,
         recovery_timeout: int = 60,
-        expected_exception: Type[Exception] = Exception,
+        expected_exception: type[Exception] = Exception,
     ) -> None:
         self.name = name
         self.failure_threshold = failure_threshold
@@ -143,13 +143,13 @@ class CircuitBreaker:
     def __call__(self, func: Callable) -> Callable:
         """Use as decorator: @breaker or @breaker()"""
         if asyncio.iscoroutinefunction(func):
+
             @functools.wraps(func)
             async def async_wrapper(*args, **kwargs):
                 if not self._can_attempt():
                     raise RemoteException(
                         upstream=self.name,
-                        message=f"Circuit breaker OPEN for '{self.name}'. "
-                                f"Failing fast to protect upstream service.",
+                        message=f"Circuit breaker OPEN for '{self.name}'. Failing fast to protect upstream service.",
                         code=503,
                     )
                 try:
@@ -165,8 +165,10 @@ class CircuitBreaker:
                         upstream=self.name,
                         message=str(e),
                     ) from e
+
             return async_wrapper
         else:
+
             @functools.wraps(func)
             def sync_wrapper(*args, **kwargs):
                 if not self._can_attempt():
@@ -188,6 +190,7 @@ class CircuitBreaker:
                         upstream=self.name,
                         message=str(e),
                     ) from e
+
             return sync_wrapper
 
     async def __aenter__(self):

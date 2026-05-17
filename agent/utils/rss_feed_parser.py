@@ -1,35 +1,28 @@
-import feedparser
-from datetime import datetime
 import hashlib
-from typing import List, Dict, Any, Optional
+from datetime import datetime
+from typing import Any
+
+import feedparser
 
 
-def get_hash(entries: List[Dict[str, str]]) -> str:
+def get_hash(entries: list[dict[str, str]]) -> str:
     texts = ""
     for entry in entries:
-        texts += (
-            str(entry.get("id", ""))
-            + str(entry.get("title", ""))
-            + str(entry.get("published_date", ""))
-        )
+        texts += str(entry.get("id", "")) + str(entry.get("title", "")) + str(entry.get("published_date", ""))
     return hashlib.md5(texts.encode()).hexdigest()
 
 
 from dateutil import parser as date_parser
 
-def parse_feed_entries(entries: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+
+def parse_feed_entries(entries: list[dict[str, Any]]) -> list[dict[str, str]]:
     parsed_entries = []
     for entry in entries:
         content = entry.get("content") or entry.get("description") or ""
-        
+
         # Get the raw date string from various possible fields
-        raw_date = (
-            entry.get("published")
-            or entry.get("updated")
-            or entry.get("pubDate")
-            or entry.get("created")
-        )
-        
+        raw_date = entry.get("published") or entry.get("updated") or entry.get("pubDate") or entry.get("created")
+
         # Try to parse the date to ISO format
         published = datetime.now().isoformat()
         if raw_date:
@@ -56,14 +49,11 @@ def parse_feed_entries(entries: List[Dict[str, Any]]) -> List[Dict[str, str]]:
     return parsed_entries
 
 
-
 def is_rss_feed(feed_data: Any) -> bool:
     return feed_data.bozo and hasattr(feed_data, "bozo_exception")
 
 
-def get_feed_data(
-    feed_url: str, etag: Optional[str] = None, modified: Optional[Any] = None
-) -> Dict[str, Any]:
+def get_feed_data(feed_url: str, etag: str | None = None, modified: Any | None = None) -> dict[str, Any]:
     feed_data = feedparser.parse(feed_url, etag=etag, modified=modified)
     if is_rss_feed(feed_data):
         return {

@@ -35,15 +35,15 @@ explicit value pick up the default.
 
 from __future__ import annotations
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 from alembic import op
 from sqlalchemy import inspect
 
 revision: str = "0002_vector_index_state"
-down_revision: Union[str, None] = "0001_initial"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "0001_initial"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 TABLE = "crawled_articles"
 INDEX_NAME = "idx_ca_embedding_state"
@@ -86,18 +86,11 @@ def upgrade() -> None:
             f"COMMENT 'pending|indexing|indexed|stale|failed|disabled'"
         )
     else:
-        op.execute(
-            f"ALTER TABLE `{TABLE}` "
-            f"ALTER COLUMN `embedding_status` SET DEFAULT 'pending'"
-        )
+        op.execute(f"ALTER TABLE `{TABLE}` ALTER COLUMN `embedding_status` SET DEFAULT 'pending'")
 
     # 2. Backfill historical NULLs so the state-machine query picks
     #    them up on the next index_pending run.
-    op.execute(
-        f"UPDATE `{TABLE}` "
-        f"SET `embedding_status` = 'pending' "
-        f"WHERE `embedding_status` IS NULL"
-    )
+    op.execute(f"UPDATE `{TABLE}` SET `embedding_status` = 'pending' WHERE `embedding_status` IS NULL")
 
     # 3. Add the rest of the state fields.
     if not _column_exists(TABLE, "embedding_enabled"):
@@ -127,10 +120,7 @@ def upgrade() -> None:
 
     # 4. Index the columns the state-machine query filters on.
     if not _index_exists(TABLE, INDEX_NAME):
-        op.execute(
-            f"CREATE INDEX `{INDEX_NAME}` ON `{TABLE}` "
-            f"(`embedding_enabled`, `embedding_status`)"
-        )
+        op.execute(f"CREATE INDEX `{INDEX_NAME}` ON `{TABLE}` (`embedding_enabled`, `embedding_status`)")
 
 
 def downgrade() -> None:
@@ -144,7 +134,4 @@ def downgrade() -> None:
     # Drop the default we set in upgrade(); column shape itself is
     # untouched (we never widened/narrowed it, so no MODIFY needed).
     if _column_exists(TABLE, "embedding_status"):
-        op.execute(
-            f"ALTER TABLE `{TABLE}` "
-            f"ALTER COLUMN `embedding_status` DROP DEFAULT"
-        )
+        op.execute(f"ALTER TABLE `{TABLE}` ALTER COLUMN `embedding_status` DROP DEFAULT")

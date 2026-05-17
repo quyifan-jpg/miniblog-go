@@ -1,12 +1,13 @@
-from celery import Celery, Task
-from kombu import Queue
-import redis
-import os
-import time
 import json
-import uuid
+import os
 import threading
+import time
+import uuid
+
+import redis
+from celery import Celery, Task
 from dotenv import load_dotenv
+from kombu import Queue
 from loguru import logger
 
 # Load .env file from miniblog directory or parent directory
@@ -47,9 +48,9 @@ app.conf.update(
 # ── Queue isolation (equivalent to CAgent's 9 named thread pool executors) ────
 # Separate queues prevent audio/crawl tasks from starving AI chat tasks.
 app.conf.task_queues = (
-    Queue("agent"),    # AI conversation tasks — highest priority
-    Queue("crawl"),    # Web crawling and article ingestion
-    Queue("media"),    # Audio/image generation — resource-intensive
+    Queue("agent"),  # AI conversation tasks — highest priority
+    Queue("crawl"),  # Web crawling and article ingestion
+    Queue("media"),  # Audio/image generation — resource-intensive
     Queue("default"),  # Catch-all for unrouted tasks
 )
 app.conf.task_default_queue = "default"

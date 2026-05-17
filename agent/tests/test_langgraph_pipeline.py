@@ -18,10 +18,9 @@ Only OPENAI_API_KEY in .env is needed.
 
 from __future__ import annotations
 
-import sys
-import os
-import json
 import argparse
+import os
+import sys
 import textwrap
 import uuid
 from pathlib import Path
@@ -31,16 +30,18 @@ AGENT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(AGENT_DIR))
 
 from dotenv import load_dotenv
+
 load_dotenv(AGENT_DIR / ".env")
 
 # ── colour helpers (no external deps) ────────────────────────────────────────
-RESET  = "\033[0m"
-BOLD   = "\033[1m"
-CYAN   = "\033[96m"
-GREEN  = "\033[92m"
+RESET = "\033[0m"
+BOLD = "\033[1m"
+CYAN = "\033[96m"
+GREEN = "\033[92m"
 YELLOW = "\033[93m"
-RED    = "\033[91m"
-DIM    = "\033[2m"
+RED = "\033[91m"
+DIM = "\033[2m"
+
 
 def h1(text: str) -> None:
     bar = "═" * 70
@@ -48,17 +49,22 @@ def h1(text: str) -> None:
     print(f"{BOLD}{CYAN}  {text}{RESET}")
     print(f"{BOLD}{CYAN}{bar}{RESET}\n")
 
+
 def h2(text: str) -> None:
     print(f"\n{BOLD}{YELLOW}── {text} ──{RESET}")
+
 
 def ok(text: str) -> None:
     print(f"{GREEN}✓ {text}{RESET}")
 
+
 def info(text: str) -> None:
     print(f"{DIM}  {text}{RESET}")
 
+
 def err(text: str) -> None:
     print(f"{RED}✗ {text}{RESET}")
+
 
 def section_result(label: str, data) -> None:
     """Pretty-print a result section."""
@@ -66,14 +72,14 @@ def section_result(label: str, data) -> None:
     if isinstance(data, list):
         for i, item in enumerate(data, 1):
             if isinstance(item, dict):
-                url   = item.get("url", "—")
+                url = item.get("url", "—")
                 title = item.get("title", "—")
-                tool  = item.get("tool_used", "—")
+                tool = item.get("tool_used", "—")
                 has_text = bool(item.get("full_text"))
                 verified = item.get("agent_verified", None)
-                v_mark = (f"{GREEN}verified{RESET}" if verified
-                          else f"{DIM}unverified{RESET}" if verified is not None
-                          else "")
+                v_mark = (
+                    f"{GREEN}verified{RESET}" if verified else f"{DIM}unverified{RESET}" if verified is not None else ""
+                )
                 print(f"  {i:2}. {BOLD}{title[:60]}{RESET}")
                 print(f"      url:  {DIM}{url[:80]}{RESET}")
                 print(f"      tool: {tool}  |  full_text: {'yes' if has_text else 'no'}  {v_mark}")
@@ -87,6 +93,7 @@ def section_result(label: str, data) -> None:
 # Test 1 — ReAct Search Pipeline
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 def test_react_search(query: str, session_id: str) -> list:
     """
     Run the LangGraph ReAct search pipeline and pretty-print the full
@@ -98,18 +105,17 @@ def test_react_search(query: str, session_id: str) -> list:
       [AIMessage summary]    — the LLM's final synthesis (no tool calls)
       Structured output      — SearchResults Pydantic model from response_format
     """
-    h1(f"TEST 1 — ReAct Search Pipeline")
+    h1("TEST 1 — ReAct Search Pipeline")
     print(f"  Query      : {BOLD}{query}{RESET}")
     print(f"  Session ID : {DIM}{session_id}{RESET}")
 
-    from langchain_core.messages import AIMessage, ToolMessage, HumanMessage
+    from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
     from langchain_openai import ChatOpenAI
     from langgraph.prebuilt import create_react_agent
-    from langchain_core.messages import SystemMessage
 
-    from graph.tools_registry import make_search_tools
-    from graph.state import SearchResults
     from graph.search_scrape_graph import SEARCH_SYSTEM_PROMPT
+    from graph.state import SearchResults
+    from graph.tools_registry import make_search_tools
 
     llm = ChatOpenAI(
         model="gpt-4o-mini",
@@ -128,9 +134,9 @@ def test_react_search(query: str, session_id: str) -> list:
     )
 
     h2("Invoking ReAct agent — watch the Thought/Action/Observation chain")
-    result = react_agent.invoke({
-        "messages": [HumanMessage(content=f"Find diverse, high-quality sources about: {query}")]
-    })
+    result = react_agent.invoke(
+        {"messages": [HumanMessage(content=f"Find diverse, high-quality sources about: {query}")]}
+    )
 
     # ── Pretty-print the full message chain ───────────────────────────────────
     h2("Full ReAct Message Chain")
@@ -139,8 +145,7 @@ def test_react_search(query: str, session_id: str) -> list:
         kind = type(msg).__name__
         if isinstance(msg, AIMessage) and msg.tool_calls:
             calls = [tc["name"] for tc in msg.tool_calls]
-            args_preview = {tc["name"]: str(tc.get("args", {}))[:60]
-                            for tc in msg.tool_calls}
+            args_preview = {tc["name"]: str(tc.get("args", {}))[:60] for tc in msg.tool_calls}
             print(f"  {BOLD}[{i}] {CYAN}AIMessage → Action{RESET}")
             for name, args in args_preview.items():
                 print(f"       tool: {GREEN}{name}{RESET}  args: {DIM}{args}{RESET}")
@@ -169,6 +174,7 @@ def test_react_search(query: str, session_id: str) -> list:
         err("structured_response is empty — response_format may need a newer LangGraph")
         # fallback
         from graph.search_scrape_graph import _fallback_parse
+
         items = _fallback_parse(messages, query, llm)
         if items:
             ok(f"Fallback parser returned {len(items)} sources")
@@ -260,6 +266,7 @@ def test_parallel_verify(crawled_results: list, query: str, session_id: str) -> 
     print(f"  Session ID : {DIM}{session_id}{RESET}")
 
     import time
+
     from graph.search_scrape_graph import run_parallel_verify
 
     h2(f"Dispatching {len(crawled_results)} parallel verify_url nodes")
@@ -270,17 +277,21 @@ def test_parallel_verify(crawled_results: list, query: str, session_id: str) -> 
     elapsed = time.perf_counter() - t0
 
     h2("Results")
-    kept     = [r for r in results if r.get("full_text")]
+    kept = [r for r in results if r.get("full_text")]
     rejected = [r for r in results if not r.get("full_text")]
     verified = [r for r in results if r.get("agent_verified")]
 
-    ok(f"Completed in {elapsed:.2f}s  |  "
-       f"{len(kept)} kept  |  {len(rejected)} rejected  |  {len(verified)} LLM-verified")
+    ok(
+        f"Completed in {elapsed:.2f}s  |  "
+        f"{len(kept)} kept  |  {len(rejected)} rejected  |  {len(verified)} LLM-verified"
+    )
 
     section_result("Verified Sources", results)
 
     h2("Timing note")
-    info(f"Sequential estimate : ~{len(crawled_results) * 2:.0f}s  (2s × {len(crawled_results)} URLs, sequential LLM calls)")
+    info(
+        f"Sequential estimate : ~{len(crawled_results) * 2:.0f}s  (2s × {len(crawled_results)} URLs, sequential LLM calls)"
+    )
     info(f"Parallel actual     : {elapsed:.2f}s  (all {len(crawled_results)} LLM calls overlapped via Send)")
 
     return results
@@ -290,17 +301,18 @@ def test_parallel_verify(crawled_results: list, query: str, session_id: str) -> 
 # Entry point
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 def main():
-    parser = argparse.ArgumentParser(
-        description="Debug runner for the LangGraph search + verify pipelines"
-    )
+    parser = argparse.ArgumentParser(description="Debug runner for the LangGraph search + verify pipelines")
     parser.add_argument(
-        "--query", "-q",
+        "--query",
+        "-q",
         default="gene therapy CRISPR",
         help="Search topic (default: 'gene therapy CRISPR')",
     )
     parser.add_argument(
-        "--test", "-t",
+        "--test",
+        "-t",
         choices=["search", "verify", "both"],
         default="both",
         help="Which test to run (default: both)",

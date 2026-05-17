@@ -1,13 +1,13 @@
 from fastapi import APIRouter
-from typing import Optional
 from pydantic import BaseModel
+
 from services.async_podcast_agent_service import podcast_agent_service
 
 router = APIRouter()
 
 
 class SessionRequest(BaseModel):
-    session_id: Optional[str] = None
+    session_id: str | None = None
 
 
 class ChatRequest(BaseModel):
@@ -21,14 +21,14 @@ class ChatResponse(BaseModel):
     stage: str
     session_state: str
     is_processing: bool = False
-    process_type: Optional[str] = None
-    task_id: Optional[str] = None
-    browser_recording_path: Optional[str] = None
+    process_type: str | None = None
+    task_id: str | None = None
+    browser_recording_path: str | None = None
 
 
 class StatusRequest(BaseModel):
     session_id: str
-    task_id: Optional[str] = None  
+    task_id: str | None = None
 
 
 @router.post("/session")
@@ -65,6 +65,7 @@ async def get_session_history(session_id: str):
 async def delete_session(session_id: str):
     """Delete a podcast session and all its data"""
     return await podcast_agent_service.delete_session(session_id)
+
 
 @router.get("/languages")
 async def get_supported_languages():

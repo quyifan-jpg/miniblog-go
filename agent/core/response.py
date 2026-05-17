@@ -17,7 +17,7 @@ Usage:
 from __future__ import annotations
 
 import math
-from typing import Any, Generic, List, Optional, TypeVar
+from typing import Any, Generic, TypeVar
 
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -36,24 +36,24 @@ class ApiResponse(BaseModel, Generic[T]):
 
     code: int = 200
     message: str = "success"
-    data: Optional[T] = None
+    data: T | None = None
 
     # ── Factory constructors ───────────────────────────────────────────────
 
     @classmethod
     def ok(
         cls,
-        data: Optional[Any] = None,
+        data: Any | None = None,
         message: str = "success",
-    ) -> "ApiResponse":
+    ) -> ApiResponse:
         return cls(code=200, message=message, data=data)
 
     @classmethod
     def created(
         cls,
-        data: Optional[Any] = None,
+        data: Any | None = None,
         message: str = "Created successfully",
-    ) -> "ApiResponse":
+    ) -> ApiResponse:
         return cls(code=201, message=message, data=data)
 
     @classmethod
@@ -61,19 +61,19 @@ class ApiResponse(BaseModel, Generic[T]):
         cls,
         code: int,
         message: str,
-        data: Optional[Any] = None,
-    ) -> "ApiResponse":
+        data: Any | None = None,
+    ) -> ApiResponse:
         return cls(code=code, message=message, data=data)
 
     @classmethod
     def paginated(
         cls,
-        items: List[Any],
+        items: list[Any],
         total: int,
         page: int,
         per_page: int,
         message: str = "success",
-    ) -> "ApiResponse":
+    ) -> ApiResponse:
         total_pages = max(1, math.ceil(total / per_page)) if per_page > 0 else 1
         return cls(
             code=200,
@@ -104,6 +104,7 @@ class ApiResponse(BaseModel, Generic[T]):
 
 
 # ── Convenience type aliases ───────────────────────────────────────────────────
+
 
 def success_response(data: Any = None, message: str = "success") -> JSONResponse:
     return ApiResponse.ok(data=data, message=message).to_json_response(200)

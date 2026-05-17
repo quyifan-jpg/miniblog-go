@@ -12,8 +12,6 @@ Usage:
 
 from __future__ import annotations
 
-from typing import List, Optional
-
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -34,8 +32,8 @@ class Settings(BaseSettings):
     # ── Redis ──────────────────────────────────────────────────────────────
     redis_host: str = "localhost"
     redis_port: int = 6379
-    redis_password: Optional[str] = None
-    redis_username: Optional[str] = None
+    redis_password: str | None = None
+    redis_username: str | None = None
     redis_db: int = 0
 
     # ── Auth ───────────────────────────────────────────────────────────────
@@ -45,7 +43,7 @@ class Settings(BaseSettings):
 
     # ── CORS ───────────────────────────────────────────────────────────────
     # Override via env: ALLOWED_ORIGINS='["http://localhost:3000","https://myapp.com"]'
-    allowed_origins: List[str] = [
+    allowed_origins: list[str] = [
         "http://localhost:3000",
         "http://localhost:18000",
         "http://127.0.0.1:3000",
@@ -66,7 +64,7 @@ class Settings(BaseSettings):
     minimax_api_key: str = ""
 
     # ── Rate limiting ──────────────────────────────────────────────────────
-    rate_limit_requests: int = 100   # default requests per window
+    rate_limit_requests: int = 100  # default requests per window
     rate_limit_window_seconds: int = 60
     chat_rate_limit_requests: int = 20  # stricter limit for LLM endpoints
 

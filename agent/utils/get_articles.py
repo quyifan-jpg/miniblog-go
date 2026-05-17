@@ -1,7 +1,8 @@
-import openai
 import json
 from datetime import datetime, timedelta
-from typing import List, Dict, Any
+from typing import Any
+
+import openai
 
 from db.connection import db_connection
 
@@ -45,7 +46,7 @@ def search_articles(
     from_date: str = None,
     use_categories: bool = True,
     fallback_to_broader: bool = True,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     if from_date is None:
         from_date = (datetime.now() - timedelta(hours=48)).isoformat()
     terms = extract_search_terms(prompt, api_key)
