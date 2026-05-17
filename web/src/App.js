@@ -1,6 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import ProtectedRoute from './components/ProtectedRoute';
+import { AuthProvider } from './contexts/AuthContext';
 import Home from './pages/Home';
 import Articles from './pages/Articles';
 import ArticleDetail from './pages/ArticleDetail';
@@ -14,6 +16,8 @@ import StudioChat from './pages/StudioChat';
 import Voyager from './pages/Voyager';
 import SocialMedia from './pages/SocialMedia';
 import SocialMediaDetail from './pages/SocialMediaDetail';
+import Login from './pages/Login';
+import Register from './pages/Register';
 
 const AppLayout = ({ children }) => {
   const location = useLocation();
@@ -33,10 +37,27 @@ const AppLayout = ({ children }) => {
 function App() {
   return (
     <Router>
+      <AuthProvider>
       <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-gray-200 flex flex-col">
         <Routes>
-          <Route path="/studio" element={<StudioLanding />} />
-          <Route path="/studio/chat/:sessionId" element={<StudioChat />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route
+            path="/studio"
+            element={
+              <ProtectedRoute>
+                <StudioLanding />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/studio/chat/:sessionId"
+            element={
+              <ProtectedRoute>
+                <StudioChat />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/"
             element={
@@ -135,6 +156,7 @@ function App() {
 />
         </Routes>
       </div>
+      </AuthProvider>
     </Router>
   );
 }

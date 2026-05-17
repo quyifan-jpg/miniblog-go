@@ -12,8 +12,15 @@ const api = axios.create({
    },
 });
 
+export const TOKEN_STORAGE_KEY = 'miniblog_access_token';
+
 api.interceptors.request.use(
    config => {
+      const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+      if (token) {
+         config.headers = config.headers || {};
+         config.headers.Authorization = `Bearer ${token}`;
+      }
       return config;
    },
    error => {
@@ -42,6 +49,17 @@ api.interceptors.response.use(
    error => {
       if (error.response) {
          console.error('API Error:', error.response.data);
+         if (error.response.status === 401) {
+            const url = error.config?.url || '';
+            const isAuthRoute = url.includes('/api/auth/login') || url.includes('/api/auth/register');
+            if (!isAuthRoute) {
+               localStorage.removeItem(TOKEN_STORAGE_KEY);
+               if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+                  const redirect = encodeURIComponent(window.location.pathname + window.location.search);
+                  window.location.href = `/login?redirect=${redirect}`;
+               }
+            }
+         }
       } else if (error.request) {
          console.error('No response received:', error.request);
       } else {
@@ -68,6 +86,13 @@ const normalizeArticleData = article => {
 const endpoints = {
    root: {
       get: () => api.get('/api'),
+   },
+   auth: {
+      register: ({ email, username, password }) =>
+         api.post('/api/auth/register', { email, username, password }),
+      login: ({ email, password }) =>
+         api.post('/api/auth/login', { email, password }),
+      me: () => api.get('/api/auth/me'),
    },
    articles: {
       getAll: (params = {}) => api.get('/api/articles/', { params }),
